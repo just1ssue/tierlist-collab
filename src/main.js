@@ -1,15 +1,88 @@
 import "./styles/app.css";
 
 import { loadState, saveState } from "./state/store.js";
-import { addCard, moveCard } from "./state/actions.js";
+import { addCard, moveCard, addTier, renameTier, deleteTier } from "./state/actions.js";
 import { el, mountToast, renderLayout } from "./ui/render.js";
 
 let state = loadState();
 
 function onShare() {
-  navigator.clipboard.writeText(location.href)
+  navigator.clipboard
+    .writeText(location.href)
     .then(() => window.__toast?.success("コピーしました"))
     .catch(() => window.__toast?.error("コピーに失敗しました"));
+}
+
+/**
+ * シンプルなモーダル（CSSは既存の .modal-backdrop / .modal を使用）
+ * - Escで閉じる
+ * - 背景クリックで閉じる
+ */
+function openModal({ title, contentNode, primaryText, onPrimary, secondaryText = "Cancel" }) {
+  const backdrop = el("div", "modal-backdrop");
+  const modal = el("div", "modal");
+
+  const head = el("div", "modal__head");
+  head.append(el("div", "modal__title", title));
+  const closeBtn = el("button", "iconbtn");
+  closeBtn.textContent = "✕";
+  head.append(closeBtn);
+
+  const body = el("div", "modal__body");
+  body.append(contentNode);
+
+  const foot = el("div", "modal__foot");
+  const cancel = el("button", "btn btn--ghost");
+  cancel.textContent = secondaryText;
+
+  const ok = el("button", "btn btn--primary");
+  ok.textContent = primaryText;
+
+  foot.append(cancel, ok);
+  modal.append(head, body, foot);
+  backdrop.append(modal);
+  document.body.append(backdrop);
+
+  const cleanup = () => {
+    window.removeEventListener("keydown", onKey);
+    backdrop.remove();
+  };
+
+  const onKey = (e) => {
+    if (e.key === "Escape") cleanup();
+  };
+  window.addEventListener("keydown", onKey);
+
+  backdrop.addEventListener("click", (e) => {
+    if (e.target === backdrop) cleanup();
+  });
+  closeBtn.addEventListener("click", cleanup);
+  cancel.addEventListener("click", cleanup);
+
+  ok.addEventListener("click", async () => {
+    const res = await onPrimary();
+    // onPrimary側が false を返したら閉じない（入力エラーなど）
+    if (res === false) return;
+    cleanup();
+  });
+
+  return { close: cleanup };
+}
+
+/** ドロップ位置（挿入index）を決める */
+function computeDropIndex({ tier, tierBodyEl, event }) {
+  const targetCardEl = event.target?.closest?.(".card");
+  if (!targetCardEl || !tierBodyEl.contains(targetCardEl)) {
+    return tier.cardIds.length; // 末尾
+  }
+
+  const targetId = targetCardEl.dataset.cardId;
+  const baseIndex = tier.cardIds.indexOf(targetId);
+  if (baseIndex === -1) return tier.cardIds.length;
+
+  const rect = targetCardEl.getBoundingClientRect();
+  const before = event.clientY < rect.top + rect.height / 2;
+  return before ? baseIndex : baseIndex + 1;
 }
 
 function cardNode(card, metaText) {
@@ -43,8 +116,114 @@ function cardNode(card, metaText) {
   return cardEl;
 }
 
+function showAddTierModal() {
+  const wrap = el("div");
+  const field = el("div", "field");
+  field.append(el("div", "label", "Tier name (1〜24文字)"));
+  const input = document.createElement("input");
+  input.className = "input";
+  input.placeholder = "例: C";
+  field.append(input);
+
+  const err = el("div", "error");
+  wrap.append(field, err);
+
+  openModal({
+    title: "Add Tier",
+    contentNode: wrap,
+    primaryText: "Add",
+    onPrimary: () => {
+      err.textContent = "";
+      const res = addTier(state, { name: input.value });
+      if (res.error) {
+        err.textContent = res.error;
+        window.__toast?.error(res.error);
+        return false; // 閉じない
+      }
+      saveState(state);
+      window.__toast?.success("Tierを追加しました");
+      renderApp();
+      return true;
+    },
+  });
+
+  // 即入力できるように
+  setTimeout(() => input.focus(), 0);
+}
+
+function showRenameTierModal(tier) {
+  const wrap = el("div");
+  const field = el("div", "field");
+  field.append(el("div", "label", "Tier name (1〜24文字)"));
+  const input = document.createElement("input");
+  input.className = "input";
+  input.value = tier.name;
+  field.append(input);
+
+  const err = el("div", "error");
+  wrap.append(field, err);
+
+  openModal({
+    title: "Rename Tier",
+    contentNode: wrap,
+    primaryText: "Save",
+    onPrimary: () => {
+      err.textContent = "";
+      const res = renameTier(state, { tierId: tier.id, name: input.value });
+      if (res.error) {
+        err.textContent = res.error;
+        window.__toast?.error(res.error);
+        return false;
+      }
+      saveState(state);
+      window.__toast?.success("Tier名を更新しました");
+      renderApp();
+      return true;
+    },
+  });
+
+  setTimeout(() => input.focus(), 0);
+}
+
+function showDeleteTierModal(tier) {
+  const wrap = el("div");
+  wrap.append(
+    el("div", "", `「${tier.name}」を削除します。`),
+    el("div", "help", "このTier内のカードは Backlog の末尾に移動します。")
+  );
+
+  openModal({
+    title: "Delete Tier",
+    contentNode: wrap,
+    primaryText: "Delete",
+    onPrimary: () => {
+      const res = deleteTier(state, { tierId: tier.id });
+      if (res.error) {
+        window.__toast?.error(res.error);
+        return false;
+      }
+      saveState(state);
+      window.__toast?.success("Tierを削除しました（カードはBacklogへ移動）");
+      renderApp();
+      return true;
+    },
+    secondaryText: "Cancel",
+  });
+}
+
 function renderBoard(mainBody) {
   const board = el("div", "board");
+
+  // Board上部に「Add Tier」ボタン（CSS追加なしで置く）
+  const toolbar = el("div");
+  toolbar.style.display = "flex";
+  toolbar.style.justifyContent = "flex-end";
+  toolbar.style.marginBottom = "12px";
+  const addTierBtn = el("button", "btn btn--secondary");
+  addTierBtn.textContent = "Add Tier";
+  addTierBtn.addEventListener("click", showAddTierModal);
+  toolbar.append(addTierBtn);
+  board.append(toolbar);
 
   for (const tier of state.tiers) {
     const tierEl = el("section", "tier");
@@ -52,33 +231,58 @@ function renderBoard(mainBody) {
 
     const head = el("div", "tier__head");
     head.append(el("div", "tier__name", tier.name));
+
     const actions = el("div", "tier__actions");
-    actions.append(el("div", "help", "DnDで移動できます"));
+
+    // 編集
+    const editBtn = el("button", "iconbtn");
+    editBtn.textContent = "✎";
+    editBtn.title = "Rename Tier";
+    editBtn.addEventListener("click", () => showRenameTierModal(tier));
+
+    // 削除（Backlogは削除不可）
+    const delBtn = el("button", "iconbtn");
+    delBtn.textContent = "🗑";
+    delBtn.title = "Delete Tier";
+    delBtn.disabled = tier.id === "t_backlog";
+    delBtn.style.opacity = tier.id === "t_backlog" ? "0.35" : "1";
+    delBtn.style.cursor = tier.id === "t_backlog" ? "not-allowed" : "pointer";
+    if (tier.id !== "t_backlog") {
+      delBtn.addEventListener("click", () => showDeleteTierModal(tier));
+    }
+
+    actions.append(editBtn, delBtn);
     head.append(actions);
 
     const body = el("div", "tier__body");
+    body.dataset.tierId = tier.id;
 
-    // Drop handlers
     body.addEventListener("dragover", (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
     });
+
     body.addEventListener("drop", (e) => {
       e.preventDefault();
+
       const cardId = e.dataTransfer.getData("text/plain");
       if (!cardId) return;
 
-      // どのTierから来たか探す
-      const fromTier = state.tiers.find(t => t.cardIds.includes(cardId));
-      const toTierId = tier.id;
+      const fromTier = state.tiers.find((t) => t.cardIds.includes(cardId));
       if (!fromTier) return;
 
-      moveCard(state, {
-        cardId,
-        fromTierId: fromTier.id,
-        toTierId,
-        toIndex: tier.cardIds.length, // とりあえず末尾へ（最小実装）
-      });
+      const toTierId = tier.id;
+      const fromTierId = fromTier.id;
+
+      let toIndex = computeDropIndex({ tier, tierBodyEl: body, event: e });
+
+      // 同一Tier内移動のindexズレ補正
+      if (fromTierId === toTierId) {
+        const fromIndex = tier.cardIds.indexOf(cardId);
+        if (fromIndex !== -1 && fromIndex < toIndex) toIndex -= 1;
+      }
+
+      moveCard(state, { cardId, fromTierId, toTierId, toIndex });
       saveState(state);
       renderApp();
     });
@@ -135,12 +339,25 @@ function renderAddForm(rightBody) {
     renderApp();
   });
 
+  titleInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") addBtn.click();
+  });
+  urlInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") addBtn.click();
+  });
+
   rightBody.replaceChildren(titleField, urlField, err, addBtn);
 }
 
 function renderApp() {
   const root = document.getElementById("app");
+  if (!root) {
+    console.error('No #app element found. Check index.html for <div id="app"></div>.');
+    return;
+  }
+
   const { mainBody, rightBody } = renderLayout(root, { onShare });
+
   const toasts = mountToast();
   root.querySelector(".app").append(toasts);
 
