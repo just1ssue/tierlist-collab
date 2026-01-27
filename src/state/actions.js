@@ -86,3 +86,29 @@ export function deleteTier(state, { tierId }) {
   state.tiers.splice(idx, 1);
   return { state, error: null };
 }
+
+/**
+ * Tier上移動（↑）：Backlogは常に最初に固定、その直下のTierも上に移動不可
+ */
+export function moveTierUp(state, { tierId }) {
+  const idx = state.tiers.findIndex((x) => x.id === tierId);
+  if (tierId === "t_backlog") return { state, error: "Backlogは移動できません。" };
+  if (idx <= 1) return { state, error: "これ以上上には移動できません。" };
+
+  // idx と idx-1 を交換
+  [state.tiers[idx], state.tiers[idx - 1]] = [state.tiers[idx - 1], state.tiers[idx]];
+  return { state, error: null };
+}
+
+/**
+ * Tier下移動（↓）：Backlogは常に最初に固定
+ */
+export function moveTierDown(state, { tierId }) {
+  const idx = state.tiers.findIndex((x) => x.id === tierId);
+  if (tierId === "t_backlog") return { state, error: "Backlogは移動できません。" };
+  if (idx >= state.tiers.length - 1) return { state, error: "これ以上下には移動できません。" };
+
+  // idx と idx+1 を交換
+  [state.tiers[idx], state.tiers[idx + 1]] = [state.tiers[idx + 1], state.tiers[idx]];
+  return { state, error: null };
+}

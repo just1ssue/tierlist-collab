@@ -1,7 +1,7 @@
 import "./styles/app.css";
 
 import { loadState, saveState } from "./state/store.js";
-import { addCard, moveCard, addTier, renameTier, deleteTier } from "./state/actions.js";
+import { addCard, moveCard, addTier, renameTier, deleteTier, moveTierUp, moveTierDown } from "./state/actions.js";
 import { el, mountToast, renderLayout } from "./ui/render.js";
 
 let state = loadState();
@@ -234,6 +234,46 @@ function renderBoard(mainBody) {
 
     const actions = el("div", "tier__actions");
 
+    // 上移動（Backlogは移動不可）
+    const upBtn = el("button", "iconbtn");
+    upBtn.textContent = "↑";
+    upBtn.title = "Move Up";
+    upBtn.disabled = tier.id === "t_backlog";
+    upBtn.style.opacity = tier.id === "t_backlog" ? "0.35" : "1";
+    upBtn.style.cursor = tier.id === "t_backlog" ? "not-allowed" : "pointer";
+    if (tier.id !== "t_backlog") {
+      upBtn.addEventListener("click", () => {
+        const res = moveTierUp(state, { tierId: tier.id });
+        if (res.error) {
+          window.__toast?.error(res.error);
+          return;
+        }
+        saveState(state);
+        window.__toast?.success("Tierを移動しました");
+        renderApp();
+      });
+    }
+
+    // 下移動（Backlogは移動不可）
+    const downBtn = el("button", "iconbtn");
+    downBtn.textContent = "↓";
+    downBtn.title = "Move Down";
+    downBtn.disabled = tier.id === "t_backlog";
+    downBtn.style.opacity = tier.id === "t_backlog" ? "0.35" : "1";
+    downBtn.style.cursor = tier.id === "t_backlog" ? "not-allowed" : "pointer";
+    if (tier.id !== "t_backlog") {
+      downBtn.addEventListener("click", () => {
+        const res = moveTierDown(state, { tierId: tier.id });
+        if (res.error) {
+          window.__toast?.error(res.error);
+          return;
+        }
+        saveState(state);
+        window.__toast?.success("Tierを移動しました");
+        renderApp();
+      });
+    }
+
     // 編集
     const editBtn = el("button", "iconbtn");
     editBtn.textContent = "✎";
@@ -251,7 +291,7 @@ function renderBoard(mainBody) {
       delBtn.addEventListener("click", () => showDeleteTierModal(tier));
     }
 
-    actions.append(editBtn, delBtn);
+    actions.append(upBtn, downBtn, editBtn, delBtn);
     head.append(actions);
 
     const body = el("div", "tier__body");
