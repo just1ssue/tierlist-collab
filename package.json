@@ -8,6 +8,11 @@
     "build": "vite build",
     "preview": "vite preview"
   },
+  "dependencies": {
+    "@liveblocks/client": "^1.12.0",
+    "yjs": "^13.6.0",
+    "lib0": "^0.2.0"
+  },
   "devDependencies": {
     "vite": "^5.4.0"
   }
