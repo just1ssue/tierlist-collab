@@ -212,20 +212,33 @@ function cardNode(card, metaText) {
 
     // Presence更新：ドラッグ開始
     if (currentRoom && currentUser) {
-      updatePresence(currentRoom, {
+      const newPresence = {
         ...currentUser,
         draggingCardId: card.id,
-      });
+      };
+      currentUser = newPresence;
+      updatePresence(currentRoom, newPresence);
+      console.log("[main] Drag started:", card.id);
     }
   });
 
   cardEl.addEventListener("dragend", (e) => {
-    // Presence更新：ドラッグ終了
+    // ドラッグ終了：常に draggingCardId をクリア
+    console.log("[main] dragend fired for card:", card.id, "current dragging:", currentUser?.draggingCardId);
+    
     if (currentRoom && currentUser) {
-      updatePresence(currentRoom, {
-        ...currentUser,
-        draggingCardId: null,
-      });
+      // 次のフレームで更新（dropイベントの処理完了を待つ）
+      setTimeout(() => {
+        if (currentUser.draggingCardId === card.id) {
+          const newPresence = {
+            ...currentUser,
+            draggingCardId: null,
+          };
+          currentUser = newPresence;
+          updatePresence(currentRoom, newPresence);
+          console.log("[main] draggingCardId cleared via dragend");
+        }
+      }, 0);
     }
   });
 
@@ -621,6 +634,7 @@ function renderBoard(mainBody) {
       }
 
       safeApplyAction("moveCard", { cardId, fromTierId, toTierId, toIndex });
+      console.log("[main] Drop completed for card:", cardId);
     });
 
     if (tier.cardIds.length === 0) {

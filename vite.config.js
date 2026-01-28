@@ -1,5 +1,7 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from "vite";
 
 export default defineConfig({
-  server: { port: 5173 }
-})
+  // GitHub Pages (project pages) URL:
+  // https://just1ssue.github.io/tierlist-collab/
+  base: "/tierlist-collab/",
+});
