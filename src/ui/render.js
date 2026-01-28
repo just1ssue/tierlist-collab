@@ -24,7 +24,11 @@ export function renderParticipants(lpBody, currentUser, othersPresence) {
   // 参加者リストをクリア
   lpBody.innerHTML = "";
 
-  const allParticipants = [currentUser, ...othersPresence].filter(Boolean);
+  // currentUser と othersPresence を統一したフォーマットに
+  const allParticipants = [
+    currentUser,
+    ...othersPresence.map(other => other.user || other) // user プロパティがあれば展開
+  ].filter(Boolean);
 
   if (allParticipants.length === 0) {
     lpBody.append(el("div", "text-muted", "No participants"));
@@ -37,6 +41,13 @@ export function renderParticipants(lpBody, currentUser, othersPresence) {
     const avatar = el("div", "participant__avatar");
     const initial = (participant.displayName?.[0] || "?").toUpperCase();
     avatar.textContent = initial;
+    
+    // userId が存在することを確認
+    if (!participant.userId) {
+      console.warn("[render] participant missing userId:", participant);
+      continue;
+    }
+    
     avatar.style.backgroundColor = hashColor(participant.userId);
 
     const info = el("div", "participant__info");

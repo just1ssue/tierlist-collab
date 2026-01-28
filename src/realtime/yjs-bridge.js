@@ -100,11 +100,16 @@ function objectToYMap(obj) {
  * state を変更する代わりに、Yjs Doc を直接操作
  */
 export function applyActionToYdoc(ydoc, actionName, params) {
-  const appMap = ydoc.getMap("app");
-  const cardsMap = appMap.get("cards");
-  const tiersArray = appMap.get("tiers");
+  try {
+    console.log(`[yjs-bridge] Applying action: ${actionName}`, params);
+    
+    const appMap = ydoc.getMap("app");
+    const cardsMap = appMap.get("cards");
+    const tiersArray = appMap.get("tiers");
 
-  if (actionName === "addCard") {
+    console.log(`[yjs-bridge] appMap: ${!!appMap}, cardsMap: ${!!cardsMap}, tiersArray: ${!!tiersArray}`);
+
+    if (actionName === "addCard") {
     const { title, imageUrl } = params;
     const id = `c_${Math.random().toString(36).slice(2, 10)}`;
     const card = new Y.Map();
@@ -243,5 +248,12 @@ export function applyActionToYdoc(ydoc, actionName, params) {
         }
       }
     }
+  }
+    console.log(`[yjs-bridge] Action applied successfully: ${actionName}`);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[yjs-bridge] Error applying action ${actionName}:`, errorMsg);
+    console.error(`[yjs-bridge] Error details:`, error);
+    throw error;
   }
 }

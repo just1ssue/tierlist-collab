@@ -1,8 +1,9 @@
 import "./styles/app.css";
 
+import * as Y from "yjs";
 import { setGlobalYdoc } from "./state/store.js";
 import { ydocToState, applyActionToYdoc } from "./realtime/yjs-bridge.js";
-import { connectRoom, disconnectRoom } from "./realtime/provider.js";
+import { connectRoom } from "./realtime/provider.js";
 import { getDefaultPresence, updatePresence, subscribeToPresence } from "./realtime/presence.js";
 import { el, mountToast, renderLayout, renderParticipants } from "./ui/render.js";
 
@@ -15,6 +16,29 @@ let currentUser = null;
 let othersPresence = [];
 
 /**
+ * Yjs Doc に対してアクションを実行（エラーハンドリング付き）
+ */
+function safeApplyAction(actionName, params) {
+  try {
+    if (!currentYdoc) {
+      console.warn(`[main] safeApplyAction: currentYdoc not available for ${actionName}`);
+      return;
+    }
+    console.log(`[main] Executing action: ${actionName}`, params);
+    applyActionToYdoc(currentYdoc, actionName, params);
+    console.log(`[main] Action executed successfully: ${actionName}`);
+    
+    // アクション実行後、Yjs Doc の内容を state に反映
+    state = ydocToState(currentYdoc);
+    // Yjs の更新は自動的に Liveblocks に同期される（LiveblocksYjsProvider経由）
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[main] Error executing action ${actionName}:`, errorMsg);
+    window.__toast?.error(`操作に失敗しました: ${errorMsg}`);
+  }
+}
+
+/**
  * ルームに接続
  */
 async function connectToRoom(roomId) {
@@ -23,9 +47,6 @@ async function connectToRoom(roomId) {
     // 既存の接続を切断
     if (presenceUnsubscribe) {
       presenceUnsubscribe();
-    }
-    if (currentRoom) {
-      disconnectRoom(currentRoom);
     }
 
     // 新しいルームに接続
@@ -55,10 +76,16 @@ async function connectToRoom(roomId) {
     // Presence リスナー設定
     console.log("[main] connectToRoom: Setting presence listener");
     presenceUnsubscribe = subscribeToPresence(room, (others) => {
-      console.log("[main] connectToRoom: Presence updated, others:", others.length);
+      console.log("[main] Presence updated, others:", others.length);
       othersPresence = others;
-      renderApp(); // 参加者表示を更新
+      // renderApp() は呼び出さない - Yjs リスナーで十分
+      // 只単に参加者リストを更新するだけ
+      const participantsSection = document.querySelector(".left-panel");
+      if (participantsSection) {
+        renderParticipants(participantsSection, othersPresence, currentUser);
+      }
     });
+    console.log("[main] connectToRoom: Presence listener set");
 
     // Yjs Doc の変更をリッスン
     console.log("[main] connectToRoom: Setting Yjs doc listener");
@@ -184,9 +211,9 @@ function cardNode(card, metaText) {
     e.dataTransfer.effectAllowed = "move";
 
     // Presence更新：ドラッグ開始
-    if (currentRoom) {
+    if (currentRoom && currentUser) {
       updatePresence(currentRoom, {
-        ...getDefaultPresence(),
+        ...currentUser,
         draggingCardId: card.id,
       });
     }
@@ -194,9 +221,9 @@ function cardNode(card, metaText) {
 
   cardEl.addEventListener("dragend", (e) => {
     // Presence更新：ドラッグ終了
-    if (currentRoom) {
+    if (currentRoom && currentUser) {
       updatePresence(currentRoom, {
-        ...getDefaultPresence(),
+        ...currentUser,
         draggingCardId: null,
       });
     }
@@ -276,9 +303,7 @@ function showAddTierModal() {
       }
 
       // Yjs Doc に適用
-      if (currentYdoc) {
-        applyActionToYdoc(currentYdoc, "addTier", { name });
-      }
+      safeApplyAction("addTier", { name });
 
       window.__toast?.success("Tierを追加しました");
       return true;
@@ -314,9 +339,7 @@ function showRenameTierModal(tier) {
         return false;
       }
 
-      if (currentYdoc) {
-        applyActionToYdoc(currentYdoc, "renameTier", { tierId: tier.id, name });
-      }
+      safeApplyAction("renameTier", { tierId: tier.id, name });
 
       window.__toast?.success("Tier名を更新しました");
       return true;
@@ -343,9 +366,7 @@ function showDeleteTierModal(tier) {
         return false;
       }
 
-      if (currentYdoc) {
-        applyActionToYdoc(currentYdoc, "deleteTier", { tierId: tier.id });
-      }
+      safeApplyAction("deleteTier", { tierId: tier.id });
 
       window.__toast?.success("Tierを削除しました（カードはBacklogへ移動）");
       return true;
@@ -391,9 +412,7 @@ function showEditCardModal(card) {
 
       const imageUrl = urlInput.value;
 
-      if (currentYdoc) {
-        applyActionToYdoc(currentYdoc, "updateCard", { cardId: card.id, title, imageUrl });
-      }
+      safeApplyAction("updateCard", { cardId: card.id, title, imageUrl });
 
       window.__toast?.success("カードを更新しました");
       return true;
@@ -428,9 +447,7 @@ function showChangeListNameModal() {
         return false;
       }
 
-      if (currentYdoc) {
-        applyActionToYdoc(currentYdoc, "updateListName", { listName });
-      }
+      safeApplyAction("updateListName", { listName });
 
       window.__toast?.success("リスト名を更新しました");
       return true;
@@ -476,9 +493,7 @@ function showAddCardModal() {
 
       const imageUrl = urlInput.value;
 
-      if (currentYdoc) {
-        applyActionToYdoc(currentYdoc, "addCard", { title, imageUrl });
-      }
+      safeApplyAction("addCard", { title, imageUrl });
 
       window.__toast?.success("カードを追加しました");
       return true;
@@ -499,9 +514,7 @@ function showDeleteCardModal(card) {
     contentNode: wrap,
     primaryText: "Delete",
     onPrimary: () => {
-      if (currentYdoc) {
-        applyActionToYdoc(currentYdoc, "deleteCard", { cardId: card.id });
-      }
+      safeApplyAction("deleteCard", { cardId: card.id });
 
       window.__toast?.success("カードを削除しました");
       return true;
@@ -511,13 +524,20 @@ function showDeleteCardModal(card) {
 }
 
 function renderBoard(mainBody) {
-  if (!state) return;
+  if (!state) {
+    console.warn("[main] renderBoard: state is null");
+    return;
+  }
 
-  const board = el("div", "board");
+  console.log("[main] renderBoard: state =", state);
+  console.log("[main] renderBoard: tiers =", state.tiers);
 
-  for (const tier of state.tiers) {
-    const tierEl = el("section", "tier");
-    tierEl.dataset.tierId = tier.id;
+  try {
+    const board = el("div", "board");
+
+    for (const tier of state.tiers) {
+      const tierEl = el("section", "tier");
+      tierEl.dataset.tierId = tier.id;
 
     const head = el("div", "tier__head");
     head.append(el("div", "tier__name", tier.name));
@@ -533,10 +553,8 @@ function renderBoard(mainBody) {
     upBtn.style.cursor = tier.id === "t_backlog" ? "not-allowed" : "pointer";
     if (tier.id !== "t_backlog") {
       upBtn.addEventListener("click", () => {
-        if (currentYdoc) {
-          applyActionToYdoc(currentYdoc, "moveTierUp", { tierId: tier.id });
-          window.__toast?.success("Tierを移動しました");
-        }
+        safeApplyAction("moveTierUp", { tierId: tier.id });
+        window.__toast?.success("Tierを移動しました");
       });
     }
 
@@ -549,10 +567,8 @@ function renderBoard(mainBody) {
     downBtn.style.cursor = tier.id === "t_backlog" ? "not-allowed" : "pointer";
     if (tier.id !== "t_backlog") {
       downBtn.addEventListener("click", () => {
-        if (currentYdoc) {
-          applyActionToYdoc(currentYdoc, "moveTierDown", { tierId: tier.id });
-          window.__toast?.success("Tierを移動しました");
-        }
+        safeApplyAction("moveTierDown", { tierId: tier.id });
+        window.__toast?.success("Tierを移動しました");
       });
     }
 
@@ -604,9 +620,7 @@ function renderBoard(mainBody) {
         if (fromIndex !== -1 && fromIndex < toIndex) toIndex -= 1;
       }
 
-      if (currentYdoc) {
-        applyActionToYdoc(currentYdoc, "moveCard", { cardId, fromTierId, toTierId, toIndex });
-      }
+      safeApplyAction("moveCard", { cardId, fromTierId, toTierId, toIndex });
     });
 
     if (tier.cardIds.length === 0) {
@@ -624,37 +638,53 @@ function renderBoard(mainBody) {
   }
 
   mainBody.replaceChildren(board);
+  console.log("[main] renderBoard: completed successfully");
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error("[main] renderBoard error:", errorMsg);
+    console.error("[main] renderBoard error details:", error);
+    mainBody.replaceChildren(el("div", "", `Error rendering board: ${errorMsg}`));
+  }
 }
 
 function renderApp() {
-  const root = document.getElementById("app");
-  if (!root) {
-    console.error('No #app element found. Check index.html for <div id="app"></div>.');
-    return;
+  try {
+    console.log("[main] renderApp: starting, state =", state);
+    
+    const root = document.getElementById("app");
+    if (!root) {
+      console.error('No #app element found. Check index.html for <div id="app"></div>.');
+      return;
+    }
+
+    if (!state) {
+      root.textContent = "ルームを読み込み中...";
+      return;
+    }
+
+    const { mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn, lpBody } = renderLayout(root, { onShare });
+
+    // 参加者リストを描画
+    renderParticipants(lpBody, currentUser, othersPresence);
+
+    // タイトル更新（空欄の場合はデフォルト値）
+    mainTitle.textContent = state.listName || "Tier list";
+
+    // ボタンイベント設定
+    changeNameBtn.addEventListener("click", showChangeListNameModal);
+    addCardBtn.addEventListener("click", showAddCardModal);
+    addTierBtn.addEventListener("click", showAddTierModal);
+
+    const toasts = mountToast();
+    root.querySelector(".app").append(toasts);
+
+    renderBoard(mainBody);
+    console.log("[main] renderApp: completed successfully");
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error("[main] renderApp error:", errorMsg);
+    console.error("[main] renderApp error details:", error);
   }
-
-  if (!state) {
-    root.textContent = "ルームを読み込み中...";
-    return;
-  }
-
-  const { mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn, lpBody } = renderLayout(root, { onShare });
-
-  // 参加者リストを描画
-  renderParticipants(lpBody, currentUser, othersPresence);
-
-  // タイトル更新（空欄の場合はデフォルト値）
-  mainTitle.textContent = state.listName || "Tier list";
-
-  // ボタンイベント設定
-  changeNameBtn.addEventListener("click", showChangeListNameModal);
-  addCardBtn.addEventListener("click", showAddCardModal);
-  addTierBtn.addEventListener("click", showAddTierModal);
-
-  const toasts = mountToast();
-  root.querySelector(".app").append(toasts);
-
-  renderBoard(mainBody);
 }
 
 /**
