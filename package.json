@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@liveblocks/client": "^1.12.0",
-    "yjs": "^13.6.0",
-    "lib0": "^0.2.0"
+    "lib0": "^0.2.117",
+    "yjs": "^13.6.29"
   },
   "devDependencies": {
     "vite": "^5.4.0"

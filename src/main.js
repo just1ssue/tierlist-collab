@@ -1,14 +1,86 @@
 import "./styles/app.css";
 
-import { loadState, saveState } from "./state/store.js";
-import { addCard, moveCard, addTier, renameTier, deleteTier, moveTierUp, moveTierDown, updateCard, deleteCard, updateListName } from "./state/actions.js";
+import { setGlobalYdoc } from "./state/store.js";
+import { ydocToState, applyActionToYdoc } from "./realtime/yjs-bridge.js";
+import { connectRoom, disconnectRoom } from "./realtime/provider.js";
+import { getDefaultPresence, updatePresence, subscribeToPresence } from "./realtime/presence.js";
 import { el, mountToast, renderLayout } from "./ui/render.js";
 
-let state = loadState();
+let state = null;
+let currentRoom = null;
+let currentYdoc = null;
+let currentRoomId = null;
+let presenceUnsubscribe = null;
+
+/**
+ * ルームに接続
+ */
+async function connectToRoom(roomId) {
+  try {
+    // 既存の接続を切断
+    if (presenceUnsubscribe) {
+      presenceUnsubscribe();
+    }
+    if (currentRoom) {
+      disconnectRoom(currentRoom);
+    }
+
+    // 新しいルームに接続
+    const { room, ydoc } = await connectRoom(roomId);
+    currentRoom = room;
+    currentYdoc = ydoc;
+    currentRoomId = roomId;
+
+    // グローバル Yjs Doc を設定
+    setGlobalYdoc(ydoc);
+
+    // 初期状態をロード
+    state = ydocToState(ydoc);
+
+    // Presence の初期化
+    const presence = getDefaultPresence();
+    updatePresence(room, presence);
+
+    // Presence リスナー設定
+    presenceUnsubscribe = subscribeToPresence(room, (others) => {
+      renderApp(); // 参加者表示を更新
+    });
+
+    // Yjs Doc の変更をリッスン
+    ydoc.on("update", () => {
+      state = ydocToState(ydoc);
+      renderApp();
+    });
+
+    return true;
+  } catch (error) {
+    console.error("Failed to connect to room:", error);
+    window.__toast?.error("ルーム接続に失敗しました");
+    return false;
+  }
+}
+
+/**
+ * 現在のルームを取得
+ */
+function getRoomId() {
+  const hash = window.location.hash;
+  if (hash.startsWith("#room/")) {
+    return hash.slice(6);
+  }
+  return null;
+}
+
+/**
+ * ルームIDを変更（URL更新）
+ */
+function setRoomId(roomId) {
+  window.location.hash = `#room/${roomId}`;
+}
 
 function onShare() {
   navigator.clipboard
-    .writeText(location.href)
+    .writeText(window.location.href)
     .then(() => window.__toast?.success("コピーしました"))
     .catch(() => window.__toast?.error("コピーに失敗しました"));
 }
@@ -93,6 +165,24 @@ function cardNode(card, metaText) {
   cardEl.addEventListener("dragstart", (e) => {
     e.dataTransfer.setData("text/plain", card.id);
     e.dataTransfer.effectAllowed = "move";
+
+    // Presence更新：ドラッグ開始
+    if (currentRoom) {
+      updatePresence(currentRoom, {
+        ...getDefaultPresence(),
+        draggingCardId: card.id,
+      });
+    }
+  });
+
+  cardEl.addEventListener("dragend", (e) => {
+    // Presence更新：ドラッグ終了
+    if (currentRoom) {
+      updatePresence(currentRoom, {
+        ...getDefaultPresence(),
+        draggingCardId: null,
+      });
+    }
   });
 
   // タイトル
@@ -161,15 +251,19 @@ function showAddTierModal() {
     primaryText: "Add",
     onPrimary: () => {
       err.textContent = "";
-      const res = addTier(state, { name: input.value });
-      if (res.error) {
-        err.textContent = res.error;
-        window.__toast?.error(res.error);
-        return false; // 閉じない
+      const name = (input.value ?? "").trim();
+      if (!name || name.length > 24) {
+        err.textContent = "Tier名は1〜24文字で入力してください。";
+        window.__toast?.error(err.textContent);
+        return false;
       }
-      saveState(state);
+
+      // Yjs Doc に適用
+      if (currentYdoc) {
+        applyActionToYdoc(currentYdoc, "addTier", { name });
+      }
+
       window.__toast?.success("Tierを追加しました");
-      renderApp();
       return true;
     },
   });
@@ -196,15 +290,18 @@ function showRenameTierModal(tier) {
     primaryText: "Save",
     onPrimary: () => {
       err.textContent = "";
-      const res = renameTier(state, { tierId: tier.id, name: input.value });
-      if (res.error) {
-        err.textContent = res.error;
-        window.__toast?.error(res.error);
+      const name = (input.value ?? "").trim();
+      if (!name || name.length > 24) {
+        err.textContent = "Tier名は1〜24文字で入力してください。";
+        window.__toast?.error(err.textContent);
         return false;
       }
-      saveState(state);
+
+      if (currentYdoc) {
+        applyActionToYdoc(currentYdoc, "renameTier", { tierId: tier.id, name });
+      }
+
       window.__toast?.success("Tier名を更新しました");
-      renderApp();
       return true;
     },
   });
@@ -224,14 +321,16 @@ function showDeleteTierModal(tier) {
     contentNode: wrap,
     primaryText: "Delete",
     onPrimary: () => {
-      const res = deleteTier(state, { tierId: tier.id });
-      if (res.error) {
-        window.__toast?.error(res.error);
+      if (tier.id === "t_backlog") {
+        window.__toast?.error("Backlogは削除できません。");
         return false;
       }
-      saveState(state);
+
+      if (currentYdoc) {
+        applyActionToYdoc(currentYdoc, "deleteTier", { tierId: tier.id });
+      }
+
       window.__toast?.success("Tierを削除しました（カードはBacklogへ移動）");
-      renderApp();
       return true;
     },
     secondaryText: "Cancel",
@@ -266,19 +365,20 @@ function showEditCardModal(card) {
     primaryText: "Save",
     onPrimary: () => {
       err.textContent = "";
-      const res = updateCard(state, { 
-        cardId: card.id, 
-        title: titleInput.value, 
-        imageUrl: urlInput.value 
-      });
-      if (res.error) {
-        err.textContent = res.error;
-        window.__toast?.error(res.error);
+      const title = (titleInput.value ?? "").trim();
+      if (!title) {
+        err.textContent = "タイトルは必須です。";
+        window.__toast?.error(err.textContent);
         return false;
       }
-      saveState(state);
+
+      const imageUrl = urlInput.value;
+
+      if (currentYdoc) {
+        applyActionToYdoc(currentYdoc, "updateCard", { cardId: card.id, title, imageUrl });
+      }
+
       window.__toast?.success("カードを更新しました");
-      renderApp();
       return true;
     },
   });
@@ -304,15 +404,18 @@ function showChangeListNameModal() {
     primaryText: "Save",
     onPrimary: () => {
       err.textContent = "";
-      const res = updateListName(state, { listName: input.value });
-      if (res.error) {
-        err.textContent = res.error;
-        window.__toast?.error(res.error);
+      const listName = (input.value ?? "").trim();
+      if (!listName || listName.length > 50) {
+        err.textContent = "リスト名は1〜50文字で入力してください。";
+        window.__toast?.error(err.textContent);
         return false;
       }
-      saveState(state);
+
+      if (currentYdoc) {
+        applyActionToYdoc(currentYdoc, "updateListName", { listName });
+      }
+
       window.__toast?.success("リスト名を更新しました");
-      renderApp();
       return true;
     },
   });
@@ -347,15 +450,20 @@ function showAddCardModal() {
     primaryText: "Add",
     onPrimary: () => {
       err.textContent = "";
-      const res = addCard(state, { title: titleInput.value, imageUrl: urlInput.value });
-      if (res.error) {
-        err.textContent = res.error;
-        window.__toast?.error(res.error);
+      const title = (titleInput.value ?? "").trim();
+      if (!title) {
+        err.textContent = "タイトルは必須です。";
+        window.__toast?.error(err.textContent);
         return false;
       }
-      saveState(state);
+
+      const imageUrl = urlInput.value;
+
+      if (currentYdoc) {
+        applyActionToYdoc(currentYdoc, "addCard", { title, imageUrl });
+      }
+
       window.__toast?.success("カードを追加しました");
-      renderApp();
       return true;
     },
   });
@@ -374,14 +482,11 @@ function showDeleteCardModal(card) {
     contentNode: wrap,
     primaryText: "Delete",
     onPrimary: () => {
-      const res = deleteCard(state, { cardId: card.id });
-      if (res.error) {
-        window.__toast?.error(res.error);
-        return false;
+      if (currentYdoc) {
+        applyActionToYdoc(currentYdoc, "deleteCard", { cardId: card.id });
       }
-      saveState(state);
+
       window.__toast?.success("カードを削除しました");
-      renderApp();
       return true;
     },
     secondaryText: "Cancel",
@@ -389,6 +494,8 @@ function showDeleteCardModal(card) {
 }
 
 function renderBoard(mainBody) {
+  if (!state) return;
+
   const board = el("div", "board");
 
   for (const tier of state.tiers) {
@@ -409,14 +516,10 @@ function renderBoard(mainBody) {
     upBtn.style.cursor = tier.id === "t_backlog" ? "not-allowed" : "pointer";
     if (tier.id !== "t_backlog") {
       upBtn.addEventListener("click", () => {
-        const res = moveTierUp(state, { tierId: tier.id });
-        if (res.error) {
-          window.__toast?.error(res.error);
-          return;
+        if (currentYdoc) {
+          applyActionToYdoc(currentYdoc, "moveTierUp", { tierId: tier.id });
+          window.__toast?.success("Tierを移動しました");
         }
-        saveState(state);
-        window.__toast?.success("Tierを移動しました");
-        renderApp();
       });
     }
 
@@ -429,14 +532,10 @@ function renderBoard(mainBody) {
     downBtn.style.cursor = tier.id === "t_backlog" ? "not-allowed" : "pointer";
     if (tier.id !== "t_backlog") {
       downBtn.addEventListener("click", () => {
-        const res = moveTierDown(state, { tierId: tier.id });
-        if (res.error) {
-          window.__toast?.error(res.error);
-          return;
+        if (currentYdoc) {
+          applyActionToYdoc(currentYdoc, "moveTierDown", { tierId: tier.id });
+          window.__toast?.success("Tierを移動しました");
         }
-        saveState(state);
-        window.__toast?.success("Tierを移動しました");
-        renderApp();
       });
     }
 
@@ -488,9 +587,9 @@ function renderBoard(mainBody) {
         if (fromIndex !== -1 && fromIndex < toIndex) toIndex -= 1;
       }
 
-      moveCard(state, { cardId, fromTierId, toTierId, toIndex });
-      saveState(state);
-      renderApp();
+      if (currentYdoc) {
+        applyActionToYdoc(currentYdoc, "moveCard", { cardId, fromTierId, toTierId, toIndex });
+      }
     });
 
     if (tier.cardIds.length === 0) {
@@ -510,51 +609,6 @@ function renderBoard(mainBody) {
   mainBody.replaceChildren(board);
 }
 
-function renderAddForm(rightBody) {
-  const titleField = el("div", "field");
-  titleField.append(el("div", "label", "Title (required)"));
-  const titleInput = document.createElement("input");
-  titleInput.className = "input";
-  titleInput.placeholder = "例: Ashe";
-  titleField.append(titleInput);
-
-  const urlField = el("div", "field");
-  urlField.append(el("div", "label", "Image URL (optional)"));
-  const urlInput = document.createElement("input");
-  urlInput.className = "input";
-  urlInput.placeholder = "https://...";
-  urlField.append(urlInput);
-  urlField.append(el("div", "help", "http/httpsのみ。読み込み失敗時はフォールバックします。"));
-
-  const err = el("div", "error");
-  const addBtn = el("button", "btn btn--secondary");
-  addBtn.textContent = "Add Card";
-
-  addBtn.addEventListener("click", () => {
-    err.textContent = "";
-    const res = addCard(state, { title: titleInput.value, imageUrl: urlInput.value });
-    if (res.error) {
-      err.textContent = res.error;
-      window.__toast?.error(res.error);
-      return;
-    }
-    saveState(state);
-    titleInput.value = "";
-    urlInput.value = "";
-    window.__toast?.success("カードを追加しました");
-    renderApp();
-  });
-
-  titleInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") addBtn.click();
-  });
-  urlInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") addBtn.click();
-  });
-
-  rightBody.replaceChildren(titleField, urlField, err, addBtn);
-}
-
 function renderApp() {
   const root = document.getElementById("app");
   if (!root) {
@@ -562,11 +616,16 @@ function renderApp() {
     return;
   }
 
+  if (!state) {
+    root.textContent = "ルームを読み込み中...";
+    return;
+  }
+
   const { mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn } = renderLayout(root, { onShare });
-  
+
   // タイトル更新（空欄の場合はデフォルト値）
   mainTitle.textContent = state.listName || "Tier list";
-  
+
   // ボタンイベント設定
   changeNameBtn.addEventListener("click", showChangeListNameModal);
   addCardBtn.addEventListener("click", showAddCardModal);
@@ -578,4 +637,38 @@ function renderApp() {
   renderBoard(mainBody);
 }
 
-renderApp();
+/**
+ * 初期化とルーティング
+ */
+async function initApp() {
+  // ルームIDを取得
+  let roomId = getRoomId();
+
+  if (!roomId) {
+    // ルームIDがない場合は作成
+    roomId = `room_${Math.random().toString(36).slice(2, 10)}`;
+    setRoomId(roomId);
+    return; // URL変更後、リロードされるのでここで終了
+  }
+
+  // ルームに接続
+  const connected = await connectToRoom(roomId);
+  if (!connected) {
+    const root = document.getElementById("app");
+    if (root) {
+      root.textContent = "ルーム接続に失敗しました。ページをリロードしてください。";
+    }
+    return;
+  }
+
+  // 初回レンダリング
+  renderApp();
+}
+
+// アプリを起動
+initApp();
+
+// ハッシュ変更時にリロード
+window.addEventListener("hashchange", () => {
+  location.reload();
+});

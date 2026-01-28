@@ -15,12 +15,6 @@ export function getGlobalYdoc() {
 
 export function loadState() {
   try {
-    // Yjs Doc が有効な場合はそちらを使用
-    if (globalYdoc) {
-      const { ydocToState } = await import("../realtime/yjs-bridge.js");
-      return ydocToState(globalYdoc);
-    }
-
     // フォールバック：localStorage
     const raw = localStorage.getItem(KEY);
     if (!raw) return createInitialState();
