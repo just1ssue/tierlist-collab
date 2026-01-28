@@ -50,20 +50,45 @@ export function renderLayout(root, { onShare }) {
   leftPanel.append(info);
 
   const mainPanel = el("main", "panel");
-  mainPanel.append(el("div", "panel__head", "Tier Board"));
+  const mainHead = el("div", "panel__head");
+  mainHead.style.display = "flex";
+  mainHead.style.justifyContent = "space-between";
+  mainHead.style.alignItems = "center";
+  const mainTitle = el("div", "");
+  mainHead.append(mainTitle);
+  
+  const headActions = el("div");
+  headActions.style.display = "flex";
+  headActions.style.gap = "8px";
+  
+  const changeNameBtn = el("button", "btn btn--secondary");
+  changeNameBtn.textContent = "Name Change";
+  changeNameBtn.style.fontSize = "13px";
+  changeNameBtn.style.padding = "6px 12px";
+  headActions.append(changeNameBtn);
+  
+  const addTierBtn = el("button", "btn btn--secondary");
+  addTierBtn.textContent = "Add Tier";
+  addTierBtn.style.fontSize = "13px";
+  addTierBtn.style.padding = "6px 12px";
+  headActions.append(addTierBtn);
+  
+  const addCardBtn = el("button", "btn btn--secondary");
+  addCardBtn.textContent = "Add Card";
+  addCardBtn.style.fontSize = "13px";
+  addCardBtn.style.padding = "6px 12px";
+  headActions.append(addCardBtn);
+  
+  mainHead.append(headActions);
+  mainPanel.append(mainHead);
   const mainBody = el("div", "panel__body");
   mainPanel.append(mainBody);
 
-  const rightPanel = el("aside", "panel");
-  rightPanel.append(el("div", "panel__head", "Add Card"));
-  const rightBody = el("div", "panel__body");
-  rightPanel.append(rightBody);
-
-  shell.append(leftPanel, mainPanel, rightPanel);
+  shell.append(leftPanel, mainPanel);
   container.append(shell);
 
   app.append(header, container);
   root.replaceChildren(app);
 
-  return { app, mainBody, rightBody };
+  return { app, mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn };
 }

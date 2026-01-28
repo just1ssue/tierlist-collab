@@ -112,3 +112,54 @@ export function moveTierDown(state, { tierId }) {
   [state.tiers[idx], state.tiers[idx + 1]] = [state.tiers[idx + 1], state.tiers[idx]];
   return { state, error: null };
 }
+
+/**
+ * カード更新（タイトル・画像URL）
+ */
+export function updateCard(state, { cardId, title, imageUrl }) {
+  const card = state.cards[cardId];
+  if (!card) return { state, error: "カードが見つかりません。" };
+
+  const t = (title ?? "").trim();
+  if (!t) return { state, error: "タイトルは必須です。" };
+
+  const url = (imageUrl ?? "").trim();
+  const safeUrl = url ? sanitizeImageUrl(url) : null;
+  if (url && !safeUrl) return { state, error: "Image URL は http/https のみ許可です。" };
+
+  card.title = t;
+  card.imageUrl = safeUrl;
+  return { state, error: null };
+}
+
+/**
+ * カード削除：Tierからもcardsからも削除
+ */
+export function deleteCard(state, { cardId }) {
+  const card = state.cards[cardId];
+  if (!card) return { state, error: "カードが見つかりません。" };
+
+  // すべてのTierからcardIdを削除
+  for (const tier of state.tiers) {
+    const idx = tier.cardIds.indexOf(cardId);
+    if (idx >= 0) {
+      tier.cardIds.splice(idx, 1);
+    }
+  }
+
+  // cardsから削除
+  delete state.cards[cardId];
+  return { state, error: null };
+}
+
+/**
+ * ティアリスト名更新
+ */
+export function updateListName(state, { listName }) {
+  const n = (listName ?? "").trim();
+  if (!n) return { state, error: "リスト名は必須です。" };
+  if (n.length > 50) return { state, error: "リスト名は50文字以下にしてください。" };
+
+  state.listName = n;
+  return { state, error: null };
+}

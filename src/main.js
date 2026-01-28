@@ -1,7 +1,7 @@
 import "./styles/app.css";
 
 import { loadState, saveState } from "./state/store.js";
-import { addCard, moveCard, addTier, renameTier, deleteTier, moveTierUp, moveTierDown } from "./state/actions.js";
+import { addCard, moveCard, addTier, renameTier, deleteTier, moveTierUp, moveTierDown, updateCard, deleteCard, updateListName } from "./state/actions.js";
 import { el, mountToast, renderLayout } from "./ui/render.js";
 
 let state = loadState();
@@ -95,6 +95,12 @@ function cardNode(card, metaText) {
     e.dataTransfer.effectAllowed = "move";
   });
 
+  // タイトル
+  const title = el("div", "card__title", card.title);
+  cardEl.append(title);
+
+  // 画像コンテナ（常に存在）
+  const imageContainer = el("div", "card__image-container");
   if (card.imageUrl) {
     const img = document.createElement("img");
     img.className = "card__thumb";
@@ -105,13 +111,34 @@ function cardNode(card, metaText) {
       const meta = cardEl.querySelector(".card__meta");
       if (meta) meta.textContent = "画像を読み込めませんでした";
     });
-    cardEl.append(img);
+    imageContainer.append(img);
   }
+  cardEl.append(imageContainer);
 
-  const body = el("div", "card__body");
-  body.append(el("div", "card__title", card.title));
-  body.append(el("div", "card__meta", metaText));
-  cardEl.append(body);
+  // メタテキストとボタン
+  const footer = el("div", "card__footer");
+  footer.append(el("div", "card__meta", metaText));
+  
+  const actions = el("div", "card__actions");
+  const editBtn = el("button", "card__btn");
+  editBtn.textContent = "✎";
+  editBtn.title = "Edit Card";
+  editBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    showEditCardModal(card);
+  });
+
+  const delBtn = el("button", "card__btn");
+  delBtn.textContent = "🗑";
+  delBtn.title = "Delete Card";
+  delBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    showDeleteCardModal(card);
+  });
+
+  actions.append(editBtn, delBtn);
+  footer.append(actions);
+  cardEl.append(footer);
 
   return cardEl;
 }
@@ -211,19 +238,158 @@ function showDeleteTierModal(tier) {
   });
 }
 
+function showEditCardModal(card) {
+  const wrap = el("div");
+  
+  const titleField = el("div", "field");
+  titleField.append(el("div", "label", "Title (required)"));
+  const titleInput = document.createElement("input");
+  titleInput.className = "input";
+  titleInput.value = card.title;
+  titleField.append(titleInput);
+
+  const urlField = el("div", "field");
+  urlField.append(el("div", "label", "Image URL (optional)"));
+  const urlInput = document.createElement("input");
+  urlInput.className = "input";
+  urlInput.value = card.imageUrl ?? "";
+  urlInput.placeholder = "https://...";
+  urlField.append(urlInput);
+  urlField.append(el("div", "help", "http/httpsのみ。空白で画像を削除します。"));
+
+  const err = el("div", "error");
+  wrap.append(titleField, urlField, err);
+
+  openModal({
+    title: "Edit Card",
+    contentNode: wrap,
+    primaryText: "Save",
+    onPrimary: () => {
+      err.textContent = "";
+      const res = updateCard(state, { 
+        cardId: card.id, 
+        title: titleInput.value, 
+        imageUrl: urlInput.value 
+      });
+      if (res.error) {
+        err.textContent = res.error;
+        window.__toast?.error(res.error);
+        return false;
+      }
+      saveState(state);
+      window.__toast?.success("カードを更新しました");
+      renderApp();
+      return true;
+    },
+  });
+
+  setTimeout(() => titleInput.focus(), 0);
+}
+
+function showChangeListNameModal() {
+  const wrap = el("div");
+  const field = el("div", "field");
+  field.append(el("div", "label", "List Name (1〜50文字)"));
+  const input = document.createElement("input");
+  input.className = "input";
+  input.value = state.listName;
+  field.append(input);
+
+  const err = el("div", "error");
+  wrap.append(field, err);
+
+  openModal({
+    title: "Change List Name",
+    contentNode: wrap,
+    primaryText: "Save",
+    onPrimary: () => {
+      err.textContent = "";
+      const res = updateListName(state, { listName: input.value });
+      if (res.error) {
+        err.textContent = res.error;
+        window.__toast?.error(res.error);
+        return false;
+      }
+      saveState(state);
+      window.__toast?.success("リスト名を更新しました");
+      renderApp();
+      return true;
+    },
+  });
+
+  setTimeout(() => input.focus(), 0);
+}
+
+function showAddCardModal() {
+  const wrap = el("div");
+  
+  const titleField = el("div", "field");
+  titleField.append(el("div", "label", "Title (required)"));
+  const titleInput = document.createElement("input");
+  titleInput.className = "input";
+  titleInput.placeholder = "例: Ashe";
+  titleField.append(titleInput);
+
+  const urlField = el("div", "field");
+  urlField.append(el("div", "label", "Image URL (optional)"));
+  const urlInput = document.createElement("input");
+  urlInput.className = "input";
+  urlInput.placeholder = "https://...";
+  urlField.append(urlInput);
+  urlField.append(el("div", "help", "http/httpsのみ。読み込み失敗時はフォールバックします。"));
+
+  const err = el("div", "error");
+  wrap.append(titleField, urlField, err);
+
+  openModal({
+    title: "Add Card",
+    contentNode: wrap,
+    primaryText: "Add",
+    onPrimary: () => {
+      err.textContent = "";
+      const res = addCard(state, { title: titleInput.value, imageUrl: urlInput.value });
+      if (res.error) {
+        err.textContent = res.error;
+        window.__toast?.error(res.error);
+        return false;
+      }
+      saveState(state);
+      window.__toast?.success("カードを追加しました");
+      renderApp();
+      return true;
+    },
+  });
+
+  setTimeout(() => titleInput.focus(), 0);
+}
+
+function showDeleteCardModal(card) {
+  const wrap = el("div");
+  wrap.append(
+    el("div", "", `「${card.title}」を削除します。`)
+  );
+
+  openModal({
+    title: "Delete Card",
+    contentNode: wrap,
+    primaryText: "Delete",
+    onPrimary: () => {
+      const res = deleteCard(state, { cardId: card.id });
+      if (res.error) {
+        window.__toast?.error(res.error);
+        return false;
+      }
+      saveState(state);
+      window.__toast?.success("カードを削除しました");
+      renderApp();
+      return true;
+    },
+    secondaryText: "Cancel",
+  });
+}
+
 function renderBoard(mainBody) {
   const board = el("div", "board");
-
-  // Board上部に「Add Tier」ボタン（CSS追加なしで置く）
-  const toolbar = el("div");
-  toolbar.style.display = "flex";
-  toolbar.style.justifyContent = "flex-end";
-  toolbar.style.marginBottom = "12px";
-  const addTierBtn = el("button", "btn btn--secondary");
-  addTierBtn.textContent = "Add Tier";
-  addTierBtn.addEventListener("click", showAddTierModal);
-  toolbar.append(addTierBtn);
-  board.append(toolbar);
 
   for (const tier of state.tiers) {
     const tierEl = el("section", "tier");
@@ -396,13 +562,20 @@ function renderApp() {
     return;
   }
 
-  const { mainBody, rightBody } = renderLayout(root, { onShare });
+  const { mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn } = renderLayout(root, { onShare });
+  
+  // タイトル更新（空欄の場合はデフォルト値）
+  mainTitle.textContent = state.listName || "Tier list";
+  
+  // ボタンイベント設定
+  changeNameBtn.addEventListener("click", showChangeListNameModal);
+  addCardBtn.addEventListener("click", showAddCardModal);
+  addTierBtn.addEventListener("click", showAddTierModal);
 
   const toasts = mountToast();
   root.querySelector(".app").append(toasts);
 
   renderBoard(mainBody);
-  renderAddForm(rightBody);
 }
 
 renderApp();

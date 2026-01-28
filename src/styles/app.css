@@ -64,10 +64,10 @@
   --focus-ring: 0 0 0 3px rgba(124,92,255,0.35);
 
   /* Layout sizing */
-  --header-h: 56px;
-  --panel-w-left: 260px;
-  --panel-w-right: 340px;
-  --container-max: 1440px;
+  --header-h: 48px;
+  --panel-w-left: 220px;
+  --panel-w-right: 300px;
+  --container-max: 1400px;
 }
 
 /* Base reset */
@@ -76,7 +76,7 @@ html, body { height: 100%; }
 body {
   margin: 0;
   font-family: var(--font-sans);
-  font-size: var(--fs-4);
+  font-size: 13px;
   line-height: var(--lh);
   color: var(--c-text);
   background: radial-gradient(1200px 600px at 20% 0%, rgba(124,92,255,0.18), transparent 50%),
@@ -131,14 +131,20 @@ a:hover { text-decoration: underline; }
   width: 100%;
   max-width: var(--container-max);
   margin: 0 auto;
-  padding: var(--s-6) var(--s-5);
+  padding: var(--s-4) var(--s-4);
 }
 
 .shell {
   display: grid;
-  grid-template-columns: var(--panel-w-left) 1fr var(--panel-w-right);
+  grid-template-columns: var(--panel-w-left) 1fr;
+  grid-template-rows: auto 1fr;
   gap: var(--s-5);
   align-items: start;
+}
+
+.shell > .panel:nth-child(3) {
+  grid-column: 1 / -1;
+  order: -1;
 }
 
 /* Panels */
@@ -309,23 +315,69 @@ a:hover { text-decoration: underline; }
   object-fit: cover;
 }
 
-.card__body {
-  padding: var(--s-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-}
-
 .card__title {
   font-size: var(--fs-3);
   font-weight: var(--fw-medium);
   word-break: break-word;
+  padding: var(--s-3) var(--s-3) 0;
+}
+
+.card__image-container {
+  width: 100%;
+  height: 96px;
+  background: rgba(255,255,255,0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.card__image-container:empty {
+  display: none;
+}
+
+.card__thumb {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.card__footer {
+  padding: var(--s-3);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--s-2);
+  align-items: center;
 }
 
 .card__meta {
   font-size: var(--fs-1);
   color: var(--c-text-muted);
 }
+
+.card__actions {
+  display: flex;
+  gap: var(--s-1);
+}
+
+.card__btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-1);
+  border: 1px solid var(--c-border);
+  background: rgba(255,255,255,0.04);
+  color: var(--c-text);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease;
+}
+.card__btn:hover { background: rgba(255,255,255,0.08); }
+.card__btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 /* Toast */
 .toasts {

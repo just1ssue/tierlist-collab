@@ -4,6 +4,7 @@ export function createInitialState() {
   const c2 = { id: "c2", title: "画像つき", imageUrl: "https://picsum.photos/400/300", createdAt: now + 1 };
 
   return {
+    listName: "Tier Board",
     cards: { [c1.id]: c1, [c2.id]: c2 },
     tiers: [
       { id: "t_backlog", name: "Backlog", cardIds: ["c1"] },
