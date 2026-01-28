@@ -1,6 +1,6 @@
 # TierList Collab
 
-リアルタイムマルチプレイ TierList 編集アプリケーション。Liveblocks + Yjs により、複数ユーザーが同時編集可能。
+リアルタイムマルチプレイ TierList 編集アプリケーション。Liveblocks + Yjs により、複数ユーザーが同時編集可能
 
 ## 必要なもの
 - Node.js (LTS)

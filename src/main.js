@@ -262,7 +262,7 @@ function cardNode(card, metaText) {
   }
   cardEl.append(imageContainer);
 
-  // メタテキストとボタン
+  // メタテキストとボタン,
   const footer = el("div", "card__footer");
   footer.append(el("div", "card__meta", metaText));
   
