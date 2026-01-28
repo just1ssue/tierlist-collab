@@ -130,17 +130,33 @@ function onShare() {
     .then(() => window.__toast?.success("コピーしました"))
     .catch(() => window.__toast?.error("コピーに失敗しました"));
 }
+
+function onShareRoomId() {
+  const roomId = getRoomId();
+  if (!roomId) {
+    window.__toast?.error("ルームIDが見つかりません");
+    return;
+  }
+  navigator.clipboard
+    .writeText(roomId)
+    .then(() => window.__toast?.success("ルームIDをコピーしました"))
+    .catch(() => window.__toast?.error("コピーに失敗しました"));
+}
 function applyTemplateById(templateId) {
   const state = getTemplateState(templateId);
   if (!state) {
     window.__toast?.error("Template not found.");
     return;
   }
+  const ok = window.confirm("テンプレートを読み込みます。現在の内容は上書きされますがよろしいですか？");
+  if (!ok) return;
   safeApplyAction("applyTemplate", { state });
   window.__toast?.success("Template applied.");
 }
 
 function resetTemplate() {
+  const ok = window.confirm("リセットします。現在の内容は上書きされますがよろしいですか？");
+  if (!ok) return;
   const state = getResetState();
   safeApplyAction("applyTemplate", { state });
   window.__toast?.success("Reset done.");
@@ -205,14 +221,15 @@ function openModal({ title, contentNode, primaryText, onPrimary, secondaryText =
 
 /** ドロップ位置（挿入index）を決める */
 function computeDropIndex({ tier, tierBodyEl, event }) {
+  const cardIds = Array.isArray(tier?.cardIds) ? tier.cardIds : [];
   const targetCardEl = event.target?.closest?.(".card");
   if (!targetCardEl || !tierBodyEl.contains(targetCardEl)) {
-    return tier.cardIds.length; // 末尾
+    return cardIds.length; // 末尾
   }
 
   const targetId = targetCardEl.dataset.cardId;
-  const baseIndex = tier.cardIds.indexOf(targetId);
-  if (baseIndex === -1) return tier.cardIds.length;
+  const baseIndex = cardIds.indexOf(targetId);
+  if (baseIndex === -1) return cardIds.length;
 
   const rect = targetCardEl.getBoundingClientRect();
   const before = event.clientY < rect.top + rect.height / 2;
@@ -263,8 +280,9 @@ function cardNode(card, metaText) {
   });
 
   // タイトル
+  const header = el("div", "card__header");
   const title = el("div", "card__title", card.title);
-  cardEl.append(title);
+  header.append(title);
 
   // 画像コンテナ（常に存在）
   const imageContainer = el("div", "card__image-container");
@@ -304,7 +322,8 @@ function cardNode(card, metaText) {
   });
 
   actions.append(editBtn, delBtn);
-  footer.append(actions);
+  header.append(actions);
+  cardEl.append(header);
   cardEl.append(footer);
 
   return cardEl;
@@ -568,23 +587,47 @@ function renderBoard(mainBody) {
   try {
     const board = el("div", "board");
 
-    for (const tier of state.tiers) {
+    const backlogTier = state.tiers.find((tier) => tier.id === "t_backlog");
+    const orderedTiers = [
+      ...state.tiers.filter((tier) => tier.id !== "t_backlog"),
+      ...(backlogTier ? [backlogTier] : []),
+    ];
+    const colorTiers = orderedTiers.filter((tier) => tier.id !== "t_backlog");
+    const totalTiers = Math.max(1, colorTiers.length);
+    const tierColor = (index) => {
+      if (totalTiers === 1) return "hsl(0, 85%, 70%)";
+      const ratio = index / (totalTiers - 1);
+      const hue = 0 + (120 * ratio);
+      return `hsl(${hue}, 85%, 70%)`;
+    };
+
+    let colorIndex = 0;
+    orderedTiers.forEach((tier) => {
       const tierEl = el("section", "tier");
       tierEl.dataset.tierId = tier.id;
+      if (!Array.isArray(tier.cardIds)) {
+        tier.cardIds = [];
+      }
 
-    const head = el("div", "tier__head");
-    head.append(el("div", "tier__name", tier.name));
-
+    const label = el("div", "tier__label");
+    const isBacklog = tier.id === "t_backlog";
+    if (isBacklog) {
+      label.style.background = "#8a8f98";
+    } else {
+      label.style.background = tierColor(colorIndex);
+      colorIndex += 1;
+    }
+    const name = el("div", "tier__label-name", tier.name);
     const actions = el("div", "tier__actions");
 
     // 上移動（Backlogは移動不可）
     const upBtn = el("button", "iconbtn");
     upBtn.textContent = "↑";
     upBtn.title = "Move Up";
-    upBtn.disabled = tier.id === "t_backlog";
-    upBtn.style.opacity = tier.id === "t_backlog" ? "0.35" : "1";
-    upBtn.style.cursor = tier.id === "t_backlog" ? "not-allowed" : "pointer";
-    if (tier.id !== "t_backlog") {
+    upBtn.disabled = isBacklog;
+    upBtn.style.opacity = isBacklog ? "0.35" : "1";
+    upBtn.style.cursor = isBacklog ? "not-allowed" : "pointer";
+    if (!isBacklog) {
       upBtn.addEventListener("click", () => {
         safeApplyAction("moveTierUp", { tierId: tier.id });
         window.__toast?.success("Tierを移動しました");
@@ -595,10 +638,13 @@ function renderBoard(mainBody) {
     const downBtn = el("button", "iconbtn");
     downBtn.textContent = "↓";
     downBtn.title = "Move Down";
-    downBtn.disabled = tier.id === "t_backlog";
-    downBtn.style.opacity = tier.id === "t_backlog" ? "0.35" : "1";
-    downBtn.style.cursor = tier.id === "t_backlog" ? "not-allowed" : "pointer";
-    if (tier.id !== "t_backlog") {
+    const isLastNonBacklog = !isBacklog && orderedTiers[orderedTiers.length - 1]?.id === "t_backlog";
+    const isJustAboveBacklog = !isBacklog && orderedTiers[orderedTiers.length - 2]?.id === tier.id;
+    const downDisabled = isBacklog || (isLastNonBacklog && isJustAboveBacklog);
+    downBtn.disabled = downDisabled;
+    downBtn.style.opacity = downDisabled ? "0.35" : "1";
+    downBtn.style.cursor = downDisabled ? "not-allowed" : "pointer";
+    if (!downDisabled) {
       downBtn.addEventListener("click", () => {
         safeApplyAction("moveTierDown", { tierId: tier.id });
         window.__toast?.success("Tierを移動しました");
@@ -615,15 +661,15 @@ function renderBoard(mainBody) {
     const delBtn = el("button", "iconbtn");
     delBtn.textContent = "🗑";
     delBtn.title = "Delete Tier";
-    delBtn.disabled = tier.id === "t_backlog";
-    delBtn.style.opacity = tier.id === "t_backlog" ? "0.35" : "1";
-    delBtn.style.cursor = tier.id === "t_backlog" ? "not-allowed" : "pointer";
-    if (tier.id !== "t_backlog") {
+    delBtn.disabled = isBacklog;
+    delBtn.style.opacity = isBacklog ? "0.35" : "1";
+    delBtn.style.cursor = isBacklog ? "not-allowed" : "pointer";
+    if (!isBacklog) {
       delBtn.addEventListener("click", () => showDeleteTierModal(tier));
     }
 
     actions.append(upBtn, downBtn, editBtn, delBtn);
-    head.append(actions);
+    label.append(name, actions);
 
     const body = el("div", "tier__body");
     body.dataset.tierId = tier.id;
@@ -667,9 +713,9 @@ function renderBoard(mainBody) {
       }
     }
 
-    tierEl.append(head, body);
+    tierEl.append(label, body);
     board.append(tierEl);
-  }
+  });
 
   mainBody.replaceChildren(board);
   console.log("[main] renderBoard: completed successfully");
@@ -696,7 +742,7 @@ function renderApp() {
       return;
     }
 
-    const { mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn, lpBody, templatesBody } = renderLayout(root, { onShare });
+    const { mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn, lpBody, templatesBody } = renderLayout(root, { onShare, onShareRoomId });
 
     // 参加者リストを描画
     participantsBody = lpBody;

@@ -134,7 +134,7 @@ function hashColor(str) {
   return `hsl(${hue}, 70%, 60%)`;
 }
 
-export function renderLayout(root, { onShare }) {
+export function renderLayout(root, { onShare, onShareRoomId }) {
   const app = el("div", "app");
 
   const header = el("header", "header");
@@ -144,7 +144,10 @@ export function renderLayout(root, { onShare }) {
   const shareBtn = el("button", "btn btn--primary");
   shareBtn.textContent = "Share URL";
   shareBtn.addEventListener("click", onShare);
-  right.append(shareBtn);
+  const shareRoomBtn = el("button", "btn btn--secondary");
+  shareRoomBtn.textContent = "Share Room ID";
+  shareRoomBtn.addEventListener("click", onShareRoomId);
+  right.append(shareBtn, shareRoomBtn);
   header.append(left, right);
 
   const container = el("div", "container");

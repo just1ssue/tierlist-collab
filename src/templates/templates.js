@@ -14,10 +14,10 @@ import odenTamago from "../assets/templates/food_oden_tamago.png";
 const templates = [
   {
     id: "oden",
-    label: "oden",
-    listName: "oden Tier",
+    label: "おでん",
+    listName: "おでん Tier",
     tiers: [
-      { id: "t_oden_backlog", name: "Backlog", cards: [] },
+      { id: "t_backlog", name: "Backlog", cards: [] },
       {
         id: "t_oden_s",
         name: "S",
@@ -48,7 +48,7 @@ const templates = [
     label: "yakitori",
     listName: "yakitori Tier",
     tiers: [
-      { id: "t_yakitori_backlog", name: "Backlog", cards: [] },
+      { id: "t_backlog", name: "Backlog", cards: [] },
       {
         id: "t_yakitori_s",
         name: "S",
@@ -71,7 +71,7 @@ const templates = [
     label: "wagashi",
     listName: "wagashi Tier",
     tiers: [
-      { id: "t_wagashi_backlog", name: "Backlog", cards: [] },
+      { id: "t_backlog", name: "Backlog", cards: [] },
       {
         id: "t_wagashi_s",
         name: "S",

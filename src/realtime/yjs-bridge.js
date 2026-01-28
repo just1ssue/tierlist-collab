@@ -19,17 +19,21 @@ export function ydocToState(ydoc) {
 export function stateToYdoc(ydoc, state) {
   const appMap = ydoc.getMap("app");
 
-  appMap.set("listName", state.listName || "Tier list");
+  const safeState = state || {};
+  const safeTiers = Array.isArray(safeState.tiers) ? safeState.tiers : [];
+  const safeCards = safeState.cards && typeof safeState.cards === "object" ? safeState.cards : {};
+
+  appMap.set("listName", safeState.listName || "Tier list");
 
   const tiersArray = new Y.Array();
-  state.tiers.forEach((tier) => {
-    tiersArray.push([objectToYMap(tier)]);
+  safeTiers.forEach((tier) => {
+    tiersArray.push([objectToYMap(tier || {})]);
   });
   appMap.set("tiers", tiersArray);
 
   const cardsMap = new Y.Map();
-  Object.entries(state.cards).forEach(([cardId, card]) => {
-    cardsMap.set(cardId, objectToYMap(card));
+  Object.entries(safeCards).forEach(([cardId, card]) => {
+    cardsMap.set(cardId, objectToYMap(card || {}));
   });
   appMap.set("cards", cardsMap);
 }
@@ -104,10 +108,27 @@ export function applyActionToYdoc(ydoc, actionName, params) {
     console.log(`[yjs-bridge] Applying action: ${actionName}`, params);
     
     const appMap = ydoc.getMap("app");
-    const cardsMap = appMap.get("cards");
-    const tiersArray = appMap.get("tiers");
+    let cardsMap = appMap.get("cards");
+    if (!(cardsMap instanceof Y.Map)) {
+      cardsMap = new Y.Map();
+      appMap.set("cards", cardsMap);
+    }
+    let tiersArray = appMap.get("tiers");
+    if (!(tiersArray instanceof Y.Array)) {
+      tiersArray = new Y.Array();
+      appMap.set("tiers", tiersArray);
+    }
 
     console.log(`[yjs-bridge] appMap: ${!!appMap}, cardsMap: ${!!cardsMap}, tiersArray: ${!!tiersArray}`);
+
+    const ensureBacklogLast = () => {
+      const tierArray = tiersArray.toArray();
+      const idx = tierArray.findIndex((t) => t instanceof Y.Map && t.get("id") === "t_backlog");
+      if (idx === -1 || idx === tierArray.length - 1) return;
+      const backlogPlain = valueToPlain(tierArray[idx]);
+      tiersArray.delete(idx, 1);
+      tiersArray.insert(tiersArray.length, [objectToYMap(backlogPlain)]);
+    };
 
     if (actionName === "addCard") {
     const { title, imageUrl } = params;
@@ -198,25 +219,35 @@ export function applyActionToYdoc(ydoc, actionName, params) {
   } else if (actionName === "moveTierUp") {
     const { tierId } = params;
     if (tiersArray) {
+      if (tierId === "t_backlog") return;
+      ensureBacklogLast();
       const tierArray = tiersArray.toArray();
       const idx = tierArray.findIndex((t) => t instanceof Y.Map && t.get("id") === tierId);
       if (idx > 1) {
-        const tier = tiersArray.get(idx);
-        const prev = tiersArray.get(idx - 1);
-        tiersArray.set(idx, prev);
-        tiersArray.set(idx - 1, tier);
+        const current = tierArray[idx];
+        const prev = tierArray[idx - 1];
+        if (prev instanceof Y.Map && prev.get("id") === "t_backlog") return;
+        const currentPlain = valueToPlain(current);
+        const prevPlain = valueToPlain(prev);
+        tiersArray.delete(idx - 1, 2);
+        tiersArray.insert(idx - 1, [objectToYMap(currentPlain), objectToYMap(prevPlain)]);
       }
     }
   } else if (actionName === "moveTierDown") {
     const { tierId } = params;
     if (tiersArray) {
+      if (tierId === "t_backlog") return;
+      ensureBacklogLast();
       const tierArray = tiersArray.toArray();
       const idx = tierArray.findIndex((t) => t instanceof Y.Map && t.get("id") === tierId);
       if (idx >= 0 && idx < tierArray.length - 1) {
-        const tier = tiersArray.get(idx);
-        const next = tiersArray.get(idx + 1);
-        tiersArray.set(idx, next);
-        tiersArray.set(idx + 1, tier);
+        const current = tierArray[idx];
+        const next = tierArray[idx + 1];
+        if (next instanceof Y.Map && next.get("id") === "t_backlog") return;
+        const currentPlain = valueToPlain(current);
+        const nextPlain = valueToPlain(next);
+        tiersArray.delete(idx, 2);
+        tiersArray.insert(idx, [objectToYMap(nextPlain), objectToYMap(currentPlain)]);
       }
     }
   } else if (actionName === "moveCard") {
