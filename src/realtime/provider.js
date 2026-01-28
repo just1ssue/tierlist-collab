@@ -7,7 +7,8 @@ if (!publicKey) {
   throw new Error("VITE_LIVEBLOCKS_PUBLIC_KEY is not set");
 }
 
-const client = createClient({ publicKey });
+console.log("[provider] Creating Liveblocks client with publicApiKey");
+const client = createClient({ publicApiKey: publicKey });
 
 /**
  * Liveblocks の Room と Yjs Doc を接続
@@ -16,12 +17,15 @@ const client = createClient({ publicKey });
  */
 export async function connectRoom(roomId) {
   try {
+    console.log("[provider] Connecting to room:", roomId);
     const room = client.enterRoom(roomId, {
       initialPresence: {},
     });
+    console.log("[provider] Room created:", room);
 
-  // Yjs Doc を作成
-  const ydoc = new Y.Doc();
+    // Yjs Doc を作成
+    const ydoc = new Y.Doc();
+    console.log("[provider] Yjs Doc created");
 
   // 簡易的な Yjs-Liveblocks 同期
   // （本格的には @liveblocks/yjs を使用することを推奨）
@@ -55,9 +59,23 @@ export async function connectRoom(roomId) {
    * Room のストレージから Yjs Doc を初期化
    */
   await new Promise((resolve) => {
-    room.subscribe("storage-status", (status) => {
-      if (status === "synchronized") {
+    let resolved = false;
+    const timeout = setTimeout(() => {
+      console.warn("[provider] Storage sync timeout, continuing anyway");
+      if (!resolved) {
+        resolved = true;
         resolve();
+      }
+    }, 3000);
+    
+    room.subscribe("storage-status", (status) => {
+      console.log("[provider] Storage status:", status);
+      if (status === "synchronized") {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          resolve();
+        }
       }
     });
   });
@@ -65,7 +83,10 @@ export async function connectRoom(roomId) {
   // ストレージからデータをロード
   const appMap = ydoc.getMap("app");
   const storage = room.getStorage();
+  console.log("[provider] Storage loaded:", storage);
+  
   if (storage) {
+    console.log("[provider] Loading storage data into Yjs Doc");
     isSyncing = true;
     appMap.set("listName", storage.listName || "Tier list");
     appMap.set("tiers", new Y.Array());
@@ -89,6 +110,7 @@ export async function connectRoom(roomId) {
     isSyncing = false;
   } else {
     // 初期状態をセット
+    console.log("[provider] Setting initial state");
     const tiersArray = new Y.Array();
     const backlogTier = new Y.Map([
       ["id", "t_backlog"],
@@ -109,6 +131,7 @@ export async function connectRoom(roomId) {
     });
   }
 
+  console.log("[provider] connectRoom completed successfully");
   return {
     room,
     ydoc,

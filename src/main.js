@@ -19,7 +19,7 @@ let othersPresence = [];
  */
 async function connectToRoom(roomId) {
   try {
-    console.log("Connecting to room:", roomId);
+    console.log("[main] connectToRoom: Connecting to room:", roomId);
     // 既存の接続を切断
     if (presenceUnsubscribe) {
       presenceUnsubscribe();
@@ -29,39 +29,49 @@ async function connectToRoom(roomId) {
     }
 
     // 新しいルームに接続
+    console.log("[main] connectToRoom: Calling connectRoom()");
     const { room, ydoc } = await connectRoom(roomId);
-    console.log("Connected to room, loading state...");
+    console.log("[main] connectToRoom: Got room and ydoc");
     currentRoom = room;
     currentYdoc = ydoc;
     currentRoomId = roomId;
 
     // グローバル Yjs Doc を設定
     setGlobalYdoc(ydoc);
+    console.log("[main] connectToRoom: setGlobalYdoc done");
 
     // 初期状態をロード
+    console.log("[main] connectToRoom: Loading state from ydoc");
     state = ydocToState(ydoc);
+    console.log("[main] connectToRoom: State loaded:", state);
 
     // Presence の初期化
+    console.log("[main] connectToRoom: Initializing presence");
     const presence = getDefaultPresence();
     currentUser = presence;
     updatePresence(room, presence);
+    console.log("[main] connectToRoom: Presence updated");
 
     // Presence リスナー設定
+    console.log("[main] connectToRoom: Setting presence listener");
     presenceUnsubscribe = subscribeToPresence(room, (others) => {
+      console.log("[main] connectToRoom: Presence updated, others:", others.length);
       othersPresence = others;
       renderApp(); // 参加者表示を更新
     });
 
     // Yjs Doc の変更をリッスン
+    console.log("[main] connectToRoom: Setting Yjs doc listener");
     ydoc.on("update", () => {
+      console.log("[main] Yjs Doc updated");
       state = ydocToState(ydoc);
       renderApp();
     });
 
-    console.log("Room connection established");
+    console.log("[main] connectToRoom: Room connection established");
     return true;
   } catch (error) {
-    console.error("Failed to connect to room:", error);
+    console.error("[main] connectToRoom: Error:", error);
     window.__toast?.error("ルーム接続に失敗しました");
     return false;
   }
@@ -651,18 +661,24 @@ function renderApp() {
  * 初期化とルーティング
  */
 async function initApp() {
+  console.log("[main] initApp started");
   // ルームIDを取得
   let roomId = getRoomId();
+  console.log("[main] Current roomId:", roomId);
 
   if (!roomId) {
     // ルームIDがない場合は作成
     roomId = `room_${Math.random().toString(36).slice(2, 10)}`;
+    console.log("[main] Generated new roomId:", roomId);
     setRoomId(roomId);
     return; // URL変更後、リロードされるのでここで終了
   }
 
   // ルームに接続
+  console.log("[main] Connecting to room:", roomId);
   const connected = await connectToRoom(roomId);
+  console.log("[main] Connection result:", connected);
+  
   if (!connected) {
     const root = document.getElementById("app");
     if (root) {
@@ -672,6 +688,7 @@ async function initApp() {
   }
 
   // 初回レンダリング
+  console.log("[main] Rendering app");
   renderApp();
 }
 

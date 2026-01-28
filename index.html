@@ -6,7 +6,34 @@
     <title>TierList Collab</title>
   </head>
   <body>
+    <div id="debug" style="position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.9); color: #0f0; padding: 10px; font-size: 11px; max-width: 350px; max-height: 500px; overflow-y: auto; z-index: 99999; font-family: 'Courier New', monospace; border-radius: 4px; border: 1px solid #0f0;"></div>
     <div id="app"></div>
+    <script>
+      // デバッグログ出力
+      const debugEl = document.getElementById("debug");
+      const logs = [];
+      
+      const originalLog = console.log;
+      const originalError = console.error;
+      
+      console.log = function(...args) {
+        originalLog(...args);
+        const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+        logs.unshift(msg); // 新しいログを上に
+        if (logs.length > 30) logs.pop();
+        debugEl.textContent = logs.join('\n');
+      };
+      
+      console.error = function(...args) {
+        originalError(...args);
+        const msg = '❌ ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+        logs.unshift(msg);
+        if (logs.length > 30) logs.pop();
+        debugEl.textContent = logs.join('\n');
+      };
+      
+      console.log("[init] Page loaded");
+    </script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
