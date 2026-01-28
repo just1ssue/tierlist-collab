@@ -14,6 +14,12 @@ let currentRoomId = null;
 let presenceUnsubscribe = null;
 let currentUser = null;
 let othersPresence = [];
+let participantsBody = null;
+
+function renderParticipantsNow() {
+  if (!participantsBody) return;
+  renderParticipants(participantsBody, currentUser, othersPresence);
+}
 
 /**
  * Yjs Doc に対してアクションを実行（エラーハンドリング付き）
@@ -78,6 +84,7 @@ async function connectToRoom(roomId) {
     presenceUnsubscribe = subscribeToPresence(room, (others) => {
       console.log("[main] Presence updated, others:", others.length);
       othersPresence = others;
+      renderParticipantsNow();
       // renderApp() は呼び出さない - Yjs リスナーで十分
       // 只単に参加者リストを更新するだけ
       const participantsSection = document.querySelector(".left-panel");
@@ -218,6 +225,7 @@ function cardNode(card, metaText) {
       };
       currentUser = newPresence;
       updatePresence(currentRoom, newPresence);
+      renderParticipantsNow();
       console.log("[main] Drag started:", card.id);
     }
   });
@@ -236,6 +244,7 @@ function cardNode(card, metaText) {
           };
           currentUser = newPresence;
           updatePresence(currentRoom, newPresence);
+          renderParticipantsNow();
           console.log("[main] draggingCardId cleared via dragend");
         }
       }, 0);
@@ -679,7 +688,8 @@ function renderApp() {
     const { mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn, lpBody } = renderLayout(root, { onShare });
 
     // 参加者リストを描画
-    renderParticipants(lpBody, currentUser, othersPresence);
+    participantsBody = lpBody;
+    renderParticipantsNow();
 
     // タイトル更新（空欄の場合はデフォルト値）
     mainTitle.textContent = state.listName || "Tier list";
