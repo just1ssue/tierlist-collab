@@ -83,6 +83,47 @@ export function renderTemplateButtons(container, templates, onApply, onReset) {
   return { resetBtn };
 }
 
+export function renderLobby(root) {
+  const app = el("div", "app");
+
+  const header = el("header", "header");
+  const left = el("div", "header__left");
+  left.append(el("div", "brand", "TierList Collab"));
+  header.append(left);
+
+  const container = el("div", "container");
+  const lobby = el("div", "lobby");
+  const panel = el("div", "panel lobby__panel");
+
+  const head = el("div", "panel__head", "Welcome");
+  const body = el("div", "panel__body");
+  body.append(el("div", "lobby__title", "ルームを作成 / 参加"));
+  body.append(el("div", "help", "サーバ側の存在チェックは行いません。入力IDが新規作成になる場合があります。"));
+
+  const createBtn = el("button", "btn btn--primary lobby__btn", "ルームを作成");
+
+  const divider = el("div", "lobby__divider", "または");
+
+  const joinWrap = el("div", "lobby__join");
+  const input = document.createElement("input");
+  input.className = "input";
+  input.placeholder = "room_abc12345";
+  joinWrap.append(input);
+
+  const joinBtn = el("button", "btn btn--secondary lobby__btn", "ルームに参加");
+  joinWrap.append(joinBtn);
+
+  body.append(createBtn, divider, joinWrap);
+  panel.append(head, body);
+  lobby.append(panel);
+  container.append(lobby);
+
+  app.append(header, container);
+  root.replaceChildren(app);
+
+  return { createBtn, joinBtn, input };
+}
+
 function hashColor(str) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {

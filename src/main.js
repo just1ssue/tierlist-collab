@@ -5,7 +5,7 @@ import { setGlobalYdoc } from "./state/store.js";
 import { ydocToState, applyActionToYdoc } from "./realtime/yjs-bridge.js";
 import { connectRoom } from "./realtime/provider.js";
 import { getDefaultPresence, updatePresence, subscribeToPresence } from "./realtime/presence.js";
-import { el, mountToast, renderLayout, renderParticipants, renderTemplateButtons } from "./ui/render.js";
+import { el, mountToast, renderLayout, renderParticipants, renderTemplateButtons, renderLobby } from "./ui/render.js";
 import { getTemplates, getTemplateState, getResetState } from "./templates/templates.js";
 
 let state = null;
@@ -735,11 +735,34 @@ async function initApp() {
   console.log("[main] Current roomId:", roomId);
 
   if (!roomId) {
-    // ルームIDがない場合は作成
-    roomId = `room_${Math.random().toString(36).slice(2, 10)}`;
-    console.log("[main] Generated new roomId:", roomId);
-    setRoomId(roomId);
-    return; // URL変更後、リロードされるのでここで終了
+    const root = document.getElementById("app");
+    if (!root) return;
+    const { createBtn, joinBtn, input } = renderLobby(root);
+
+    const toasts = mountToast();
+    root.querySelector(".app").append(toasts);
+
+    const goToRoom = (id) => {
+      const trimmed = (id || "").trim();
+      if (!trimmed) {
+        window.__toast?.error("ルームIDを入力してください");
+        return;
+      }
+      setRoomId(trimmed);
+    };
+
+    createBtn.addEventListener("click", () => {
+      const newId = `room_${Math.random().toString(36).slice(2, 10)}`;
+      console.log("[main] Generated new roomId:", newId);
+      setRoomId(newId);
+    });
+
+    joinBtn.addEventListener("click", () => goToRoom(input.value));
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") goToRoom(input.value);
+    });
+
+    return;
   }
 
   // ルームに接続
