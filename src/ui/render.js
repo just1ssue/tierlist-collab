@@ -38,35 +38,17 @@ export function renderParticipants(lpBody, currentUser, othersPresence) {
     const initial = (participant.displayName?.[0] || "?").toUpperCase();
     avatar.textContent = initial;
     avatar.style.backgroundColor = hashColor(participant.userId);
-    avatar.style.color = "white";
-    avatar.style.width = "36px";
-    avatar.style.height = "36px";
-    avatar.style.borderRadius = "50%";
-    avatar.style.display = "flex";
-    avatar.style.alignItems = "center";
-    avatar.style.justifyContent = "center";
-    avatar.style.fontSize = "14px";
-    avatar.style.fontWeight = "bold";
 
     const info = el("div", "participant__info");
     const name = el("div", "participant__name", participant.displayName || "Guest");
-    name.style.fontSize = "13px";
-    name.style.fontWeight = "500";
     info.append(name);
 
     if (participant.draggingCardId) {
       const status = el("div", "participant__status", `🎯 Dragging card`);
-      status.style.fontSize = "12px";
-      status.style.color = "#666";
       info.append(status);
     }
 
     participantEl.append(avatar, info);
-    participantEl.style.display = "flex";
-    participantEl.style.gap = "12px";
-    participantEl.style.padding = "8px 0";
-    participantEl.style.alignItems = "center";
-
     lpBody.append(participantEl);
   }
 }

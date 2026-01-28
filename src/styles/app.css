@@ -458,3 +458,52 @@ a:hover { text-decoration: underline; }
     grid-template-columns: 1fr;
   }
 }
+
+/* Participants */
+.participant {
+  display: flex;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  align-items: flex-start;
+}
+
+.participant__avatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-3);
+  font-weight: var(--fw-semibold);
+  color: white;
+  box-shadow: var(--shadow-1);
+}
+
+.participant__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.participant__name {
+  font-size: var(--fs-2);
+  font-weight: var(--fw-medium);
+  color: var(--c-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.participant__status {
+  font-size: var(--fs-1);
+  color: var(--c-text-secondary);
+  margin-top: var(--s-1);
+}
+
+.text-muted {
+  font-size: var(--fs-2);
+  color: var(--c-text-secondary);
+  padding: var(--s-2) 0;
+}
+
