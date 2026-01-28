@@ -20,6 +20,67 @@ export function mountToast() {
   return toasts;
 }
 
+export function renderParticipants(lpBody, currentUser, othersPresence) {
+  // 参加者リストをクリア
+  lpBody.innerHTML = "";
+
+  const allParticipants = [currentUser, ...othersPresence].filter(Boolean);
+
+  if (allParticipants.length === 0) {
+    lpBody.append(el("div", "text-muted", "No participants"));
+    return;
+  }
+
+  for (const participant of allParticipants) {
+    const participantEl = el("div", "participant");
+
+    const avatar = el("div", "participant__avatar");
+    const initial = (participant.displayName?.[0] || "?").toUpperCase();
+    avatar.textContent = initial;
+    avatar.style.backgroundColor = hashColor(participant.userId);
+    avatar.style.color = "white";
+    avatar.style.width = "36px";
+    avatar.style.height = "36px";
+    avatar.style.borderRadius = "50%";
+    avatar.style.display = "flex";
+    avatar.style.alignItems = "center";
+    avatar.style.justifyContent = "center";
+    avatar.style.fontSize = "14px";
+    avatar.style.fontWeight = "bold";
+
+    const info = el("div", "participant__info");
+    const name = el("div", "participant__name", participant.displayName || "Guest");
+    name.style.fontSize = "13px";
+    name.style.fontWeight = "500";
+    info.append(name);
+
+    if (participant.draggingCardId) {
+      const status = el("div", "participant__status", `🎯 Dragging card`);
+      status.style.fontSize = "12px";
+      status.style.color = "#666";
+      info.append(status);
+    }
+
+    participantEl.append(avatar, info);
+    participantEl.style.display = "flex";
+    participantEl.style.gap = "12px";
+    participantEl.style.padding = "8px 0";
+    participantEl.style.alignItems = "center";
+
+    lpBody.append(participantEl);
+  }
+}
+
+function hashColor(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 70%, 60%)`;
+}
+
 export function renderLayout(root, { onShare }) {
   const app = el("div", "app");
 
@@ -90,5 +151,5 @@ export function renderLayout(root, { onShare }) {
   app.append(header, container);
   root.replaceChildren(app);
 
-  return { app, mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn };
+  return { app, mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn, lpBody };
 }

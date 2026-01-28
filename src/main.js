@@ -4,13 +4,15 @@ import { setGlobalYdoc } from "./state/store.js";
 import { ydocToState, applyActionToYdoc } from "./realtime/yjs-bridge.js";
 import { connectRoom, disconnectRoom } from "./realtime/provider.js";
 import { getDefaultPresence, updatePresence, subscribeToPresence } from "./realtime/presence.js";
-import { el, mountToast, renderLayout } from "./ui/render.js";
+import { el, mountToast, renderLayout, renderParticipants } from "./ui/render.js";
 
 let state = null;
 let currentRoom = null;
 let currentYdoc = null;
 let currentRoomId = null;
 let presenceUnsubscribe = null;
+let currentUser = null;
+let othersPresence = [];
 
 /**
  * ルームに接続
@@ -41,10 +43,12 @@ async function connectToRoom(roomId) {
 
     // Presence の初期化
     const presence = getDefaultPresence();
+    currentUser = presence;
     updatePresence(room, presence);
 
     // Presence リスナー設定
     presenceUnsubscribe = subscribeToPresence(room, (others) => {
+      othersPresence = others;
       renderApp(); // 参加者表示を更新
     });
 
@@ -624,7 +628,10 @@ function renderApp() {
     return;
   }
 
-  const { mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn } = renderLayout(root, { onShare });
+  const { mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn, lpBody } = renderLayout(root, { onShare });
+
+  // 参加者リストを描画
+  renderParticipants(lpBody, currentUser, othersPresence);
 
   // タイトル更新（空欄の場合はデフォルト値）
   mainTitle.textContent = state.listName || "Tier list";
