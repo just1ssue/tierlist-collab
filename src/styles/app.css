@@ -507,3 +507,19 @@ a:hover { text-decoration: underline; }
   padding: var(--s-2) 0;
 }
 
+/* Templates */
+.template-grid {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.btn--template {
+  width: 100%;
+  justify-content: flex-start;
+  font-size: var(--fs-2);
+  padding: 8px 10px;
+}
+
+.template-reset {
+  margin-top: var(--s-2);
+}

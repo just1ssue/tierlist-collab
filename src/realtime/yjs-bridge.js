@@ -248,6 +248,12 @@ export function applyActionToYdoc(ydoc, actionName, params) {
         }
       }
     }
+  } else if (actionName === "applyTemplate") {
+    const { state } = params;
+    if (!state) {
+      throw new Error("applyTemplate requires a state payload");
+    }
+    stateToYdoc(ydoc, state);
   }
     console.log(`[yjs-bridge] Action applied successfully: ${actionName}`);
   } catch (error) {

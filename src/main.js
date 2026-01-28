@@ -5,7 +5,8 @@ import { setGlobalYdoc } from "./state/store.js";
 import { ydocToState, applyActionToYdoc } from "./realtime/yjs-bridge.js";
 import { connectRoom } from "./realtime/provider.js";
 import { getDefaultPresence, updatePresence, subscribeToPresence } from "./realtime/presence.js";
-import { el, mountToast, renderLayout, renderParticipants } from "./ui/render.js";
+import { el, mountToast, renderLayout, renderParticipants, renderTemplateButtons } from "./ui/render.js";
+import { getTemplates, getTemplateState, getResetState } from "./templates/templates.js";
 
 let state = null;
 let currentRoom = null;
@@ -85,12 +86,6 @@ async function connectToRoom(roomId) {
       console.log("[main] Presence updated, others:", others.length);
       othersPresence = others;
       renderParticipantsNow();
-      // renderApp() は呼び出さない - Yjs リスナーで十分
-      // 只単に参加者リストを更新するだけ
-      const participantsSection = document.querySelector(".left-panel");
-      if (participantsSection) {
-        renderParticipants(participantsSection, othersPresence, currentUser);
-      }
     });
     console.log("[main] connectToRoom: Presence listener set");
 
@@ -135,6 +130,22 @@ function onShare() {
     .then(() => window.__toast?.success("コピーしました"))
     .catch(() => window.__toast?.error("コピーに失敗しました"));
 }
+function applyTemplateById(templateId) {
+  const state = getTemplateState(templateId);
+  if (!state) {
+    window.__toast?.error("Template not found.");
+    return;
+  }
+  safeApplyAction("applyTemplate", { state });
+  window.__toast?.success("Template applied.");
+}
+
+function resetTemplate() {
+  const state = getResetState();
+  safeApplyAction("applyTemplate", { state });
+  window.__toast?.success("Reset done.");
+}
+
 
 /**
  * シンプルなモーダル（CSSは既存の .modal-backdrop / .modal を使用）
@@ -685,11 +696,14 @@ function renderApp() {
       return;
     }
 
-    const { mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn, lpBody } = renderLayout(root, { onShare });
+    const { mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn, lpBody, templatesBody } = renderLayout(root, { onShare });
 
     // 参加者リストを描画
     participantsBody = lpBody;
     renderParticipantsNow();
+
+    const templates = getTemplates();
+    renderTemplateButtons(templatesBody, templates, applyTemplateById, resetTemplate);
 
     // タイトル更新（空欄の場合はデフォルト値）
     mainTitle.textContent = state.listName || "Tier list";

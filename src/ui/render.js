@@ -64,6 +64,25 @@ export function renderParticipants(lpBody, currentUser, othersPresence) {
   }
 }
 
+export function renderTemplateButtons(container, templates, onApply, onReset) {
+  container.innerHTML = "";
+
+  const grid = el("div", "template-grid");
+  templates.forEach((template) => {
+    const btn = el("button", "btn btn--secondary btn--template", template.label);
+    btn.type = "button";
+    btn.addEventListener("click", () => onApply(template.id));
+    grid.append(btn);
+  });
+
+  const resetBtn = el("button", "btn btn--ghost btn--template template-reset", "Reset");
+  resetBtn.type = "button";
+  resetBtn.addEventListener("click", onReset);
+
+  container.append(grid, resetBtn);
+  return { resetBtn };
+}
+
 function hashColor(str) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -98,10 +117,13 @@ export function renderLayout(root, { onShare }) {
   leftPanel.append(el("div", "panel__head", "Room Info"));
   const info = el("div", "panel__body");
   info.append(
-    el("div", "", "いまはローカル動作（Phase1）です。"),
-    el("div", "help", "次のPhaseでマルチ（Liveblocks/Yjs）を入れます。")
+    el("div", "", "いまはマルチ追加状態（Phase2）です。"),
+    el("div", "help", "次は機能拡張を行います")
   );
   leftPanel.append(info);
+  leftPanel.append(el("div", "panel__head", "Templates"));
+  const templatesBody = el("div", "panel__body");
+  leftPanel.append(templatesBody);
 
   const mainPanel = el("main", "panel");
   const mainHead = el("div", "panel__head");
@@ -144,5 +166,5 @@ export function renderLayout(root, { onShare }) {
   app.append(header, container);
   root.replaceChildren(app);
 
-  return { app, mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn, lpBody };
+  return { app, mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn, lpBody, templatesBody };
 }
