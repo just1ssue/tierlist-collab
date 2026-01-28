@@ -17,6 +17,7 @@ let presenceUnsubscribe = null;
  */
 async function connectToRoom(roomId) {
   try {
+    console.log("Connecting to room:", roomId);
     // 既存の接続を切断
     if (presenceUnsubscribe) {
       presenceUnsubscribe();
@@ -27,6 +28,7 @@ async function connectToRoom(roomId) {
 
     // 新しいルームに接続
     const { room, ydoc } = await connectRoom(roomId);
+    console.log("Connected to room, loading state...");
     currentRoom = room;
     currentYdoc = ydoc;
     currentRoomId = roomId;
@@ -52,6 +54,7 @@ async function connectToRoom(roomId) {
       renderApp();
     });
 
+    console.log("Room connection established");
     return true;
   } catch (error) {
     console.error("Failed to connect to room:", error);
@@ -668,7 +671,11 @@ async function initApp() {
 // アプリを起動
 initApp();
 
-// ハッシュ変更時にリロード
+// ハッシュ変更時にリロード（無限ループ防止用に1回限りに）
+let hashChangeHandled = false;
 window.addEventListener("hashchange", () => {
-  location.reload();
+  if (!hashChangeHandled) {
+    hashChangeHandled = true;
+    location.reload();
+  }
 });

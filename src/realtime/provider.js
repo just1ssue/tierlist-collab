@@ -15,9 +15,10 @@ const client = createClient({ publicKey });
  * @returns {Promise<{room, ydoc, provider}>}
  */
 export async function connectRoom(roomId) {
-  const room = client.enterRoom(roomId, {
-    initialPresence: {},
-  });
+  try {
+    const room = client.enterRoom(roomId, {
+      initialPresence: {},
+    });
 
   // Yjs Doc を作成
   const ydoc = new Y.Doc();
@@ -88,9 +89,24 @@ export async function connectRoom(roomId) {
     isSyncing = false;
   } else {
     // 初期状態をセット
+    const tiersArray = new Y.Array();
+    const backlogTier = new Y.Map([
+      ["id", "t_backlog"],
+      ["name", "Backlog"],
+      ["cardIds", new Y.Array()],
+    ]);
+    tiersArray.push([backlogTier]);
+
     appMap.set("listName", "Tier list");
-    appMap.set("tiers", new Y.Array());
+    appMap.set("tiers", tiersArray);
     appMap.set("cards", new Y.Map());
+
+    // ストレージにも初期データをセット
+    room.updateStorage({
+      listName: "Tier list",
+      tiers: [{ id: "t_backlog", name: "Backlog", cardIds: [] }],
+      cards: {},
+    });
   }
 
   return {
@@ -102,6 +118,10 @@ export async function connectRoom(roomId) {
       destroy: () => room.leave(),
     },
   };
+  } catch (error) {
+    console.error("Failed to connect to Liveblocks room:", error);
+    throw error;
+  }
 }
 
 /**
