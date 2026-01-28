@@ -223,7 +223,7 @@ export function applyActionToYdoc(ydoc, actionName, params) {
       ensureBacklogLast();
       const tierArray = tiersArray.toArray();
       const idx = tierArray.findIndex((t) => t instanceof Y.Map && t.get("id") === tierId);
-      if (idx > 1) {
+      if (idx > 0) {
         const current = tierArray[idx];
         const prev = tierArray[idx - 1];
         if (prev instanceof Y.Map && prev.get("id") === "t_backlog") return;
