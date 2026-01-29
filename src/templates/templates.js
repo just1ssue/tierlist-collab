@@ -17,7 +17,7 @@ const templates = [
     label: "おでん",
     listName: "おでん TierList",
     tiers: [
-      { id: "t_oden_s", name: "S", cards: [
+      { id: "t_oden_s", name: "1", cards: [
         { id: "c_oden_daikon", title: "大根", imageUrl: odenDaikon },
         { id: "c_oden_tamago", title: "玉子", imageUrl: odenTamago },
         { id: "c_oden_konnyaku", title: "こんにゃく", imageUrl: odenKonnyaku },
@@ -31,7 +31,7 @@ const templates = [
         { id: "c_oden_satsumaage", title: "さつま揚げ", imageUrl: odenSatsumaage },
         { id: "c_oden_shirataki", title: "しらたき", imageUrl: odenShirataki },
       ]},
-      { id: "t_oden_a", name: "A", cards: [] },
+      { id: "t_oden_a", name: "2", cards: [] },
       { id: "t_vote", name: "VOTE", cards: [] },
       { id: "t_backlog", name: "Backlog", cards: [] },
     ],

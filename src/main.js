@@ -373,7 +373,7 @@ function getDragCardId(event) {
   );
 }
 
-function cardNode(card, metaText) {
+function cardNode(card) {
   const cardEl = el("div", "card");
   cardEl.draggable = true;
   cardEl.dataset.cardId = card.id;
@@ -383,7 +383,7 @@ function cardNode(card, metaText) {
     e.dataTransfer.setData("text/plain", card.id);
     e.dataTransfer.effectAllowed = "move";
 
-    // Presence更新：ドラッグ開始
+    // Presence?????????
     if (currentRoom && currentUser) {
       const newPresence = {
         ...currentUser,
@@ -397,11 +397,10 @@ function cardNode(card, metaText) {
   });
 
   cardEl.addEventListener("dragend", (e) => {
-    // ドラッグ終了：常に draggingCardId をクリア
+    // ????????? draggingCardId ????
     console.log("[main] dragend fired for card:", card.id, "current dragging:", currentUser?.draggingCardId);
-    
     if (currentRoom && currentUser) {
-      // 次のフレームで更新（dropイベントの処理完了を待つ）
+      // ??????????drop?????????????
       setTimeout(() => {
         if (currentUser.draggingCardId === card.id) {
           const newPresence = {
@@ -417,14 +416,12 @@ function cardNode(card, metaText) {
     }
   });
 
-  // タイトル
-  const header = el("div", "card__header");
   const title = el("div", "card__title", card.title);
-  header.append(title);
 
-  // 画像コンテナ（常に存在）
+  // ????????????
   const imageContainer = el("div", "card__image-container");
   const safeUrl = getSafeImageUrl(card.imageUrl);
+
   if (safeUrl) {
     const img = document.createElement("img");
     img.className = "card__thumb";
@@ -436,20 +433,15 @@ function cardNode(card, metaText) {
     img.draggable = false;
     img.addEventListener("error", () => {
       img.remove();
-      const meta = cardEl.querySelector(".card__meta");
-      if (meta) meta.textContent = "画像を読み込めませんでした";
+      const errorEl = el("div", "card__error", "画像を読み込めませんでした");
+      imageContainer.append(errorEl);
     });
     imageContainer.append(img);
   }
-  cardEl.append(imageContainer);
 
-  // メタテキストとボタン,
-  const footer = el("div", "card__footer");
-  footer.append(el("div", "card__meta", metaText));
-  
   const actions = el("div", "card__actions");
   const editBtn = el("button", "card__btn");
-  editBtn.textContent = "✎";
+  editBtn.textContent = "✏️";
   editBtn.title = "Edit Card";
   editBtn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -457,7 +449,7 @@ function cardNode(card, metaText) {
   });
 
   const delBtn = el("button", "card__btn");
-  delBtn.textContent = "🗑";
+  delBtn.textContent = "🗑️";
   delBtn.title = "Delete Card";
   delBtn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -465,10 +457,12 @@ function cardNode(card, metaText) {
   });
 
   actions.append(editBtn, delBtn);
-  header.append(actions);
-  cardEl.append(header);
-  cardEl.append(footer);
+  imageContainer.append(actions);
 
+  const footer = el("div", "card__footer");
+  footer.append(title);
+
+  cardEl.append(imageContainer, footer);
   return cardEl;
 }
 
