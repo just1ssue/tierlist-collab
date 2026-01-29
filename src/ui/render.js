@@ -227,6 +227,9 @@ export function renderLayout(root, { onShare, onShareRoomId }) {
   const voteImg = document.createElement("img");
   voteImg.className = "vote-slot__img";
   voteImg.alt = "";
+  voteImg.referrerPolicy = "no-referrer";
+  voteImg.loading = "lazy";
+  voteImg.decoding = "async";
   voteImg.draggable = false;
   voteSlot.append(voteImg);
   const voteTitle = el("div", "vote-slot__title", "No card");

@@ -22,7 +22,31 @@ export function newId(prefix = "id") {
 export function sanitizeImageUrl(url) {
   const u = (url ?? "").trim();
   if (!u) return null;
-  if (!/^https?:\/\/.+/i.test(u)) return null;
-  return u;
+  if (u.length > 2048) return null;
+  if (u.startsWith("//")) return null;
+  const assetPrefixes = [
+    "/assets/",
+    "/src/assets/",
+    "/tierlist-collab/assets/",
+    "/tierlist-collab/src/assets/",
+  ];
+  if (assetPrefixes.some((p) => u.startsWith(p))) return u;
+  if (u.startsWith("./assets/") || u.startsWith("./src/assets/")) return u.slice(1);
+  if (u.startsWith("assets/") || u.startsWith("src/assets/")) return `/${u}`;
+  if (u.startsWith("./tierlist-collab/assets/") || u.startsWith("./tierlist-collab/src/assets/")) {
+    return u.slice(1);
+  }
+  if (u.startsWith("tierlist-collab/assets/") || u.startsWith("tierlist-collab/src/assets/")) {
+    return `/${u}`;
+  }
+  try {
+    const parsed = new URL(u);
+    const protocol = parsed.protocol.toLowerCase();
+    if (protocol !== "http:" && protocol !== "https:") return null;
+    if (parsed.username || parsed.password) return null;
+    return parsed.href;
+  } catch {
+    return null;
+  }
 }
 

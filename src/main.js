@@ -2,6 +2,7 @@ import "./styles/app.css";
 
 import * as Y from "yjs";
 import { setGlobalYdoc } from "./state/store.js";
+import { sanitizeImageUrl } from "./state/model.js";
 import { ydocToState, applyActionToYdoc } from "./realtime/yjs-bridge.js";
 import { connectRoom } from "./realtime/provider.js";
 import { getDefaultPresence, updatePresence, subscribeToPresence } from "./realtime/presence.js";
@@ -19,6 +20,10 @@ let participantsBody = null;
 let voteUI = null;
 let currentVoteCardId = null;
 let currentVoteSessionId = null;
+
+function getSafeImageUrl(url) {
+  return sanitizeImageUrl(url);
+}
 
 function getVoteTier() {
   return state?.tiers?.find((tier) => tier.id === "t_vote") || null;
@@ -245,9 +250,10 @@ function updateVoteUI() {
 
   if (hasCard) {
     voteSlot.classList.remove("is-empty");
-    if (card.imageUrl) {
+    const safeUrl = getSafeImageUrl(card.imageUrl);
+    if (safeUrl) {
       voteImg.style.display = "block";
-      voteImg.src = card.imageUrl;
+      voteImg.src = safeUrl;
     } else {
       voteImg.style.display = "none";
       voteImg.src = "";
@@ -417,11 +423,15 @@ function cardNode(card, metaText) {
 
   // 画像コンテナ（常に存在）
   const imageContainer = el("div", "card__image-container");
-  if (card.imageUrl) {
+  const safeUrl = getSafeImageUrl(card.imageUrl);
+  if (safeUrl) {
     const img = document.createElement("img");
     img.className = "card__thumb";
-    img.src = card.imageUrl;
+    img.src = safeUrl;
     img.alt = "";
+    img.referrerPolicy = "no-referrer";
+    img.loading = "lazy";
+    img.decoding = "async";
     img.draggable = false;
     img.addEventListener("error", () => {
       img.remove();
@@ -595,8 +605,14 @@ function showEditCardModal(card) {
       }
 
       const imageUrl = urlInput.value;
+      const safeUrl = imageUrl ? getSafeImageUrl(imageUrl) : null;
+      if (imageUrl && !safeUrl) {
+        err.textContent = "Image URL は http/https のみ許可しています";
+        window.__toast?.error(err.textContent);
+        return false;
+      }
 
-      safeApplyAction("updateCard", { cardId: card.id, title, imageUrl });
+      safeApplyAction("updateCard", { cardId: card.id, title, imageUrl: safeUrl });
 
       window.__toast?.success("カードを更新しました");
       return true;
@@ -676,8 +692,14 @@ function showAddCardModal() {
       }
 
       const imageUrl = urlInput.value;
+      const safeUrl = imageUrl ? getSafeImageUrl(imageUrl) : null;
+      if (imageUrl && !safeUrl) {
+        err.textContent = "Image URL は http/https のみ許可しています";
+        window.__toast?.error(err.textContent);
+        return false;
+      }
 
-      safeApplyAction("addCard", { title, imageUrl });
+      safeApplyAction("addCard", { title, imageUrl: safeUrl });
 
       window.__toast?.success("カードを追加しました");
       return true;
@@ -844,7 +866,8 @@ function renderBoard(mainBody) {
       for (const cid of tier.cardIds) {
         const c = state.cards[cid];
         if (!c) continue;
-        body.append(cardNode(c, c.imageUrl ? "" : "画像なし"));
+        const safeUrl = getSafeImageUrl(c.imageUrl);
+        body.append(cardNode({ ...c, imageUrl: safeUrl }, safeUrl ? "" : "画像なし"));
       }
     }
 
