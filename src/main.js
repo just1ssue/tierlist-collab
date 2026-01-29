@@ -16,6 +16,33 @@ let presenceUnsubscribe = null;
 let currentUser = null;
 let othersPresence = [];
 let participantsBody = null;
+let voteUI = null;
+let currentVoteCardId = null;
+let currentVoteSessionId = null;
+
+function getVoteTier() {
+  return state?.tiers?.find((tier) => tier.id === "t_vote") || null;
+}
+
+function getVoteCardId() {
+  const voteTier = getVoteTier();
+  return Array.isArray(voteTier?.cardIds) ? voteTier.cardIds[0] || null : null;
+}
+
+function findCardTierId(cardId) {
+  if (!state?.tiers) return null;
+  const tier = state.tiers.find((t) => Array.isArray(t.cardIds) && t.cardIds.includes(cardId));
+  return tier ? tier.id : null;
+}
+
+function moveCardToTier(cardId, toTierId) {
+  const fromTierId = findCardTierId(cardId);
+  if (!fromTierId) return false;
+  const toTier = state.tiers.find((t) => t.id === toTierId);
+  const toIndex = Array.isArray(toTier?.cardIds) ? toTier.cardIds.length : 0;
+  safeApplyAction("moveCard", { cardId, fromTierId, toTierId, toIndex });
+  return true;
+}
 
 function renderParticipantsNow() {
   if (!participantsBody) return;
@@ -72,6 +99,9 @@ async function connectToRoom(roomId) {
     console.log("[main] connectToRoom: Loading state from ydoc");
     state = ydocToState(ydoc);
     console.log("[main] connectToRoom: State loaded:", state);
+    if (!state.tiers?.some((t) => t.id === "t_vote")) {
+      safeApplyAction("ensureVoteTier", {});
+    }
 
     // Presence の初期化
     console.log("[main] connectToRoom: Initializing presence");
@@ -84,9 +114,10 @@ async function connectToRoom(roomId) {
     console.log("[main] connectToRoom: Setting presence listener");
     presenceUnsubscribe = subscribeToPresence(room, (others) => {
       console.log("[main] Presence updated, others:", others.length);
-      othersPresence = others;
-      renderParticipantsNow();
-    });
+    othersPresence = others;
+    renderParticipantsNow();
+    updateVoteUI();
+  });
     console.log("[main] connectToRoom: Presence listener set");
 
     // Yjs Doc の変更をリッスン
@@ -160,6 +191,96 @@ function resetTemplate() {
   const state = getResetState();
   safeApplyAction("applyTemplate", { state });
   window.__toast?.success("Reset done.");
+}
+
+function newVoteSessionId() {
+  return `vs_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function resetVoteSession() {
+  const sessionId = newVoteSessionId();
+  safeApplyAction("setVoteSession", { sessionId });
+  if (currentRoom && currentUser) {
+    const newPresence = { ...currentUser, vote: null, voteSessionId: sessionId };
+    currentUser = newPresence;
+    updatePresence(currentRoom, newPresence);
+  }
+  currentVoteSessionId = sessionId;
+  updateVoteUI();
+}
+
+function setVoteCard(cardId) {
+  if (!state) return;
+  const voteTier = getVoteTier();
+  const currentCardId = getVoteCardId();
+  if (currentCardId === cardId) return;
+
+  // If there is already a vote card, move it back to backlog.
+  if (currentCardId) {
+    moveCardToTier(currentCardId, "t_backlog");
+  }
+
+  if (cardId) {
+    moveCardToTier(cardId, "t_vote");
+  }
+
+  resetVoteSession();
+}
+
+function updateVoteUI() {
+  if (!voteUI || !state) return;
+  const {
+    voteSlot,
+    voteImg,
+    voteTitle,
+    goodBtn,
+    badBtn,
+    goodCount,
+    badCount,
+  } = voteUI;
+
+  const cardId = getVoteCardId();
+  const card = cardId ? state.cards[cardId] : null;
+  const hasCard = !!card;
+
+  if (hasCard) {
+    voteSlot.classList.remove("is-empty");
+    if (card.imageUrl) {
+      voteImg.style.display = "block";
+      voteImg.src = card.imageUrl;
+    } else {
+      voteImg.style.display = "none";
+      voteImg.src = "";
+    }
+    voteTitle.textContent = card.title || "";
+    voteSlot.draggable = true;
+    voteSlot.dataset.cardId = cardId;
+  } else {
+    voteSlot.classList.add("is-empty");
+    voteImg.style.display = "none";
+    voteImg.src = "";
+    voteTitle.textContent = "No card";
+    voteSlot.draggable = false;
+    voteSlot.dataset.cardId = "";
+  }
+
+  goodBtn.disabled = !hasCard;
+  badBtn.disabled = !hasCard;
+
+  const all = [currentUser, ...othersPresence.map((o) => o.user || o)].filter(Boolean);
+  const sessionId = state.voteSessionId || null;
+  const likeCount = hasCard
+    ? all.filter((u) => u.vote === "like" && u.voteSessionId === sessionId).length
+    : 0;
+  const badCountValue = hasCard
+    ? all.filter((u) => u.vote === "dislike" && u.voteSessionId === sessionId).length
+    : 0;
+  goodCount.textContent = String(likeCount);
+  badCount.textContent = String(badCountValue);
+
+  const voteValue = currentUser?.vote || null;
+  goodBtn.classList.toggle("is-active", voteValue === "like");
+  badBtn.classList.toggle("is-active", voteValue === "dislike");
 }
 
 
@@ -236,12 +357,22 @@ function computeDropIndex({ tier, tierBodyEl, event }) {
   return before ? baseIndex : baseIndex + 1;
 }
 
+function getDragCardId(event) {
+  if (!event?.dataTransfer) return "";
+  return (
+    event.dataTransfer.getData("application/x-tier-card") ||
+    event.dataTransfer.getData("text/plain") ||
+    ""
+  );
+}
+
 function cardNode(card, metaText) {
   const cardEl = el("div", "card");
   cardEl.draggable = true;
   cardEl.dataset.cardId = card.id;
 
   cardEl.addEventListener("dragstart", (e) => {
+    e.dataTransfer.setData("application/x-tier-card", card.id);
     e.dataTransfer.setData("text/plain", card.id);
     e.dataTransfer.effectAllowed = "move";
 
@@ -291,6 +422,7 @@ function cardNode(card, metaText) {
     img.className = "card__thumb";
     img.src = card.imageUrl;
     img.alt = "";
+    img.draggable = false;
     img.addEventListener("error", () => {
       img.remove();
       const meta = cardEl.querySelector(".card__meta");
@@ -589,7 +721,7 @@ function renderBoard(mainBody) {
 
     const backlogTier = state.tiers.find((tier) => tier.id === "t_backlog");
     const orderedTiers = [
-      ...state.tiers.filter((tier) => tier.id !== "t_backlog"),
+      ...state.tiers.filter((tier) => tier.id !== "t_backlog" && tier.id !== "t_vote"),
       ...(backlogTier ? [backlogTier] : []),
     ];
     const colorTiers = orderedTiers.filter((tier) => tier.id !== "t_backlog");
@@ -682,7 +814,7 @@ function renderBoard(mainBody) {
     body.addEventListener("drop", (e) => {
       e.preventDefault();
 
-      const cardId = e.dataTransfer.getData("text/plain");
+      const cardId = getDragCardId(e);
       if (!cardId) return;
 
       const fromTier = state.tiers.find((t) => t.cardIds.includes(cardId));
@@ -700,6 +832,9 @@ function renderBoard(mainBody) {
       }
 
       safeApplyAction("moveCard", { cardId, fromTierId, toTierId, toIndex });
+      if (fromTierId === "t_vote" || toTierId === "t_vote") {
+        resetVoteSession();
+      }
       console.log("[main] Drop completed for card:", cardId);
     });
 
@@ -742,7 +877,22 @@ function renderApp() {
       return;
     }
 
-    const { mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn, lpBody, templatesBody } = renderLayout(root, { onShare, onShareRoomId });
+    const {
+      mainBody,
+      mainTitle,
+      changeNameBtn,
+      addCardBtn,
+      addTierBtn,
+      lpBody,
+      templatesBody,
+      voteSlot,
+      voteImg,
+      voteTitle,
+      goodBtn,
+      badBtn,
+      goodCount,
+      badCount,
+    } = renderLayout(root, { onShare, onShareRoomId });
 
     // 参加者リストを描画
     participantsBody = lpBody;
@@ -750,6 +900,86 @@ function renderApp() {
 
     const templates = getTemplates();
     renderTemplateButtons(templatesBody, templates, applyTemplateById, resetTemplate);
+
+    voteUI = { voteSlot, voteImg, voteTitle, goodBtn, badBtn, goodCount, badCount };
+
+    const nextVoteCardId = getVoteCardId();
+    if (currentVoteCardId !== nextVoteCardId || currentVoteSessionId !== state.voteSessionId) {
+      currentVoteCardId = nextVoteCardId;
+      currentVoteSessionId = state.voteSessionId || null;
+      if (currentRoom && currentUser) {
+        const newPresence = {
+          ...currentUser,
+          vote: null,
+          voteSessionId: currentVoteSessionId,
+        };
+        currentUser = newPresence;
+        updatePresence(currentRoom, newPresence);
+      }
+    }
+
+    voteSlot.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+    });
+    voteSlot.addEventListener("dragstart", (e) => {
+      const cardId = getVoteCardId();
+      if (!cardId) {
+        e.preventDefault();
+        return;
+      }
+      e.dataTransfer.setData("application/x-tier-card", cardId);
+      e.dataTransfer.setData("text/plain", cardId);
+      e.dataTransfer.effectAllowed = "move";
+      voteSlot.classList.add("is-over");
+    });
+    voteSlot.addEventListener("dragend", () => {
+      voteSlot.classList.remove("is-over");
+    });
+    voteSlot.addEventListener("dragenter", (e) => {
+      e.preventDefault();
+      voteSlot.classList.add("is-over");
+    });
+    voteSlot.addEventListener("dragleave", () => {
+      voteSlot.classList.remove("is-over");
+    });
+    voteSlot.addEventListener("drop", (e) => {
+      e.preventDefault();
+      voteSlot.classList.remove("is-over");
+      const cardId = getDragCardId(e);
+      if (!cardId) return;
+      if (!state.cards[cardId]) {
+        window.__toast?.error("カードが見つかりません");
+        return;
+      }
+      setVoteCard(cardId);
+    });
+
+    goodBtn.addEventListener("click", () => {
+      if (!getVoteCardId() || !currentRoom || !currentUser) return;
+      const next = currentUser.vote === "like" ? null : "like";
+      const newPresence = {
+        ...currentUser,
+        vote: next,
+        voteSessionId: state.voteSessionId || null,
+      };
+      currentUser = newPresence;
+      updatePresence(currentRoom, newPresence);
+      updateVoteUI();
+    });
+
+    badBtn.addEventListener("click", () => {
+      if (!getVoteCardId() || !currentRoom || !currentUser) return;
+      const next = currentUser.vote === "dislike" ? null : "dislike";
+      const newPresence = {
+        ...currentUser,
+        vote: next,
+        voteSessionId: state.voteSessionId || null,
+      };
+      currentUser = newPresence;
+      updatePresence(currentRoom, newPresence);
+      updateVoteUI();
+    });
 
     // タイトル更新（空欄の場合はデフォルト値）
     mainTitle.textContent = state.listName || "Tier list";
@@ -763,6 +993,7 @@ function renderApp() {
     root.querySelector(".app").append(toasts);
 
     renderBoard(mainBody);
+    updateVoteUI();
     console.log("[main] renderApp: completed successfully");
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);

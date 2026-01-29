@@ -8,6 +8,8 @@ export function ydocToState(ydoc) {
 
   return {
     listName: appMap.get("listName") || "Tier list",
+    voteCardId: appMap.get("voteCardId") || null,
+    voteSessionId: appMap.get("voteSessionId") || null,
     cards: mapToObject(appMap.get("cards")),
     tiers: arrayToState(appMap.get("tiers")),
   };
@@ -24,6 +26,8 @@ export function stateToYdoc(ydoc, state) {
   const safeCards = safeState.cards && typeof safeState.cards === "object" ? safeState.cards : {};
 
   appMap.set("listName", safeState.listName || "Tier list");
+  appMap.set("voteCardId", safeState.voteCardId || null);
+  appMap.set("voteSessionId", safeState.voteSessionId || null);
 
   const tiersArray = new Y.Array();
   safeTiers.forEach((tier) => {
@@ -153,6 +157,9 @@ export function applyActionToYdoc(ydoc, actionName, params) {
   } else if (actionName === "deleteCard") {
     const { cardId } = params;
     cardsMap.delete(cardId);
+    if (appMap.get("voteCardId") === cardId) {
+      appMap.set("voteCardId", null);
+    }
 
     // すべての Tier から削除
     if (tiersArray) {
@@ -278,6 +285,22 @@ export function applyActionToYdoc(ydoc, actionName, params) {
           cardIds.insert(idx, [cardId]);
         }
       }
+    }
+  } else if (actionName === "setVoteCard") {
+    const { cardId } = params;
+    appMap.set("voteCardId", cardId || null);
+  } else if (actionName === "setVoteSession") {
+    const { sessionId } = params;
+    appMap.set("voteSessionId", sessionId || null);
+  } else if (actionName === "ensureVoteTier") {
+    const tierArray = tiersArray.toArray();
+    const hasVote = tierArray.some((t) => t instanceof Y.Map && t.get("id") === "t_vote");
+    if (!hasVote) {
+      const tier = new Y.Map();
+      tier.set("id", "t_vote");
+      tier.set("name", "VOTE");
+      tier.set("cardIds", new Y.Array());
+      tiersArray.push([tier]);
     }
   } else if (actionName === "applyTemplate") {
     const { state } = params;

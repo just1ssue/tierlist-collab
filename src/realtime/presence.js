@@ -21,6 +21,8 @@ export function getDefaultPresence() {
     cursor: null,
     draggingCardId: null,
     editingTierId: null,
+    vote: null,
+    voteSessionId: null,
     lastActive: Date.now(),
   };
 }

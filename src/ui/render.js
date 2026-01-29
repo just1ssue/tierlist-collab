@@ -1,3 +1,7 @@
+import titleLogo from "../assets/title.png";
+import goodIcon from "../assets/good.png";
+import badIcon from "../assets/bad.png";
+
 export function el(tag, className, text) {
   const n = document.createElement(tag);
   if (className) n.className = className;
@@ -88,7 +92,13 @@ export function renderLobby(root) {
 
   const header = el("header", "header");
   const left = el("div", "header__left");
-  left.append(el("div", "brand", "TierList Collab"));
+  const brand = el("div", "brand");
+  const brandImg = document.createElement("img");
+  brandImg.className = "brand__img";
+  brandImg.src = titleLogo;
+  brandImg.alt = "TierList Collab";
+  brand.append(brandImg);
+  left.append(brand);
   header.append(left);
 
   const container = el("div", "container");
@@ -139,7 +149,13 @@ export function renderLayout(root, { onShare, onShareRoomId }) {
 
   const header = el("header", "header");
   const left = el("div", "header__left");
-  left.append(el("div", "brand", "TierList Collab"));
+  const brand = el("div", "brand");
+  const brandImg = document.createElement("img");
+  brandImg.className = "brand__img";
+  brandImg.src = titleLogo;
+  brandImg.alt = "TierList Collab";
+  brand.append(brandImg);
+  left.append(brand);
   const right = el("div", "header__right");
   const shareBtn = el("button", "btn btn--primary");
   shareBtn.textContent = "Share URL";
@@ -161,8 +177,8 @@ export function renderLayout(root, { onShare, onShareRoomId }) {
   leftPanel.append(el("div", "panel__head", "Room Info"));
   const info = el("div", "panel__body");
   info.append(
-    el("div", "", "いまはマルチ追加状態（Phase2）です。"),
-    el("div", "help", "次は機能拡張を行います")
+    el("div", "", "現在機能拡張中 Phase3。"),
+    el("div", "help", "悪意に対応したいです")
   );
   leftPanel.append(info);
   leftPanel.append(el("div", "panel__head", "Templates"));
@@ -204,11 +220,62 @@ export function renderLayout(root, { onShare, onShareRoomId }) {
   const mainBody = el("div", "panel__body");
   mainPanel.append(mainBody);
 
-  shell.append(leftPanel, mainPanel);
+  const rightPanel = el("aside", "panel vote-panel");
+  rightPanel.append(el("div", "panel__head", "VOTE"));
+  const voteBody = el("div", "panel__body vote-panel__body");
+  const voteSlot = el("div", "vote-slot");
+  const voteImg = document.createElement("img");
+  voteImg.className = "vote-slot__img";
+  voteImg.alt = "";
+  voteImg.draggable = false;
+  voteSlot.append(voteImg);
+  const voteTitle = el("div", "vote-slot__title", "No card");
+
+  const voteButtons = el("div", "vote-buttons");
+  const goodBtn = el("button", "vote-btn");
+  const goodImg = document.createElement("img");
+  goodImg.src = goodIcon;
+  goodImg.alt = "Good";
+  goodBtn.append(goodImg);
+  const goodCount = el("div", "vote-count", "0");
+
+  const badBtn = el("button", "vote-btn");
+  const badImg = document.createElement("img");
+  badImg.src = badIcon;
+  badImg.alt = "Bad";
+  badBtn.append(badImg);
+  const badCount = el("div", "vote-count", "0");
+
+  const goodWrap = el("div", "vote-group");
+  goodWrap.append(goodBtn, goodCount);
+  const badWrap = el("div", "vote-group");
+  badWrap.append(badBtn, badCount);
+  voteButtons.append(goodWrap, badWrap);
+
+  voteBody.append(voteSlot, voteTitle, voteButtons);
+  rightPanel.append(voteBody);
+
+  shell.append(leftPanel, mainPanel, rightPanel);
   container.append(shell);
 
   app.append(header, container);
   root.replaceChildren(app);
 
-  return { app, mainBody, mainTitle, changeNameBtn, addCardBtn, addTierBtn, lpBody, templatesBody };
+  return {
+    app,
+    mainBody,
+    mainTitle,
+    changeNameBtn,
+    addCardBtn,
+    addTierBtn,
+    lpBody,
+    templatesBody,
+    voteSlot,
+    voteImg,
+    voteTitle,
+    goodBtn,
+    badBtn,
+    goodCount,
+    badCount,
+  };
 }
