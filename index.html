@@ -4,45 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TierList Collab</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' http: https:; connect-src 'self' https://*.liveblocks.io wss://*.liveblocks.io; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'"
+    />
   </head>
   <body>
-    <div id="debugToggle" style="position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #0f0; padding: 8px 12px; font-size: 12px; z-index: 99999; font-family: 'Courier New', monospace; border-radius: 4px; border: 1px solid #0f0; cursor: pointer; user-select: none; font-weight: bold;">🔍 DEBUG</div>
-    <div id="debug" style="position: fixed; bottom: 50px; left: 10px; background: rgba(0,0,0,0.9); color: #0f0; padding: 10px; font-size: 11px; max-width: 350px; max-height: 500px; overflow-y: auto; z-index: 99998; font-family: 'Courier New', monospace; border-radius: 4px; border: 1px solid #0f0; display: none;"></div>
     <div id="app"></div>
-    <script>
-      // デバッグログ出力
-      const debugEl = document.getElementById("debug");
-      const toggleEl = document.getElementById("debugToggle");
-      const logs = [];
-      
-      let debugVisible = false;
-      toggleEl.addEventListener("click", () => {
-        debugVisible = !debugVisible;
-        debugEl.style.display = debugVisible ? "block" : "none";
-        toggleEl.textContent = debugVisible ? "❌ CLOSE" : "🔍 DEBUG";
-      });
-      
-      const originalLog = console.log;
-      const originalError = console.error;
-      
-      console.log = function(...args) {
-        originalLog(...args);
-        const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-        logs.unshift(msg); // 新しいログを上に
-        if (logs.length > 30) logs.pop();
-        debugEl.textContent = logs.join('\n');
-      };
-      
-      console.error = function(...args) {
-        originalError(...args);
-        const msg = '❌ ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-        logs.unshift(msg);
-        if (logs.length > 30) logs.pop();
-        debugEl.textContent = logs.join('\n');
-      };
-      
-      console.log("[init] Page loaded");
-    </script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

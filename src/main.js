@@ -1,4 +1,5 @@
 import "./styles/app.css";
+import "./debug.js";
 
 import * as Y from "yjs";
 import { setGlobalYdoc } from "./state/store.js";
