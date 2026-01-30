@@ -2,6 +2,7 @@ import "./styles/app.css";
 import "./debug.js";
 
 import * as Y from "yjs";
+import html2canvas from "html2canvas";
 import { setGlobalYdoc } from "./state/store.js";
 import { sanitizeImageUrl } from "./state/model.js";
 import { ydocToState, applyActionToYdoc } from "./realtime/yjs-bridge.js";
@@ -901,6 +902,7 @@ function renderApp() {
       changeNameBtn,
       addCardBtn,
       addTierBtn,
+      exportBtn,
       lpBody,
       templatesBody,
       voteSlot,
@@ -1006,6 +1008,7 @@ function renderApp() {
     changeNameBtn.addEventListener("click", showChangeListNameModal);
     addCardBtn.addEventListener("click", showAddCardModal);
     addTierBtn.addEventListener("click", showAddTierModal);
+    exportBtn.addEventListener("click", () => exportBoardImage(mainBody));
 
     const toasts = mountToast();
     root.querySelector(".app").append(toasts);
@@ -1017,6 +1020,93 @@ function renderApp() {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error("[main] renderApp error:", errorMsg);
     console.error("[main] renderApp error details:", error);
+  }
+}
+
+async function exportBoardImage(mainBody) {
+  try {
+    const board = mainBody?.querySelector?.(".board");
+    if (!board) {
+      window.__toast?.error("ボードが見つかりません");
+      return;
+    }
+
+    const clone = board.cloneNode(true);
+    const backlog = clone.querySelector?.('[data-tier-id="t_backlog"]');
+    if (backlog) backlog.remove();
+
+    // Remove buttons and controls from the exported image
+    clone
+      .querySelectorAll(".card__actions, .tier__actions, .iconbtn, button")
+      .forEach((el) => el.remove());
+    clone.querySelectorAll(".drop-hint").forEach((el) => el.remove());
+
+    // Replace <img> with background images to preserve aspect ratio in html2canvas
+    clone.querySelectorAll(".card__image-container img").forEach((img) => {
+      const src = img.getAttribute("src") || "";
+      const box = document.createElement("div");
+      box.style.width = "100%";
+      box.style.height = "100%";
+      box.style.backgroundImage = `url("${src}")`;
+      box.style.backgroundRepeat = "no-repeat";
+      box.style.backgroundPosition = "center";
+      box.style.backgroundSize = "contain";
+      img.replaceWith(box);
+    });
+
+    const wrapper = document.createElement("div");
+    wrapper.style.display = "flex";
+    wrapper.style.flexDirection = "column";
+    wrapper.style.gap = "8px";
+    wrapper.style.padding = "12px";
+    wrapper.style.background = "rgba(17,26,51,0.72)";
+    wrapper.style.border = "1px solid rgba(255,255,255,0.10)";
+    wrapper.style.borderRadius = "12px";
+
+    const title = document.createElement("div");
+    title.textContent = state?.listName || "Tier list";
+    title.style.fontSize = "16px";
+    title.style.fontWeight = "600";
+    title.style.color = "rgba(255,255,255,0.92)";
+
+    wrapper.append(title, clone);
+
+    const staging = document.createElement("div");
+    staging.style.position = "fixed";
+    staging.style.left = "-10000px";
+    staging.style.top = "0";
+    staging.style.padding = "0";
+    staging.style.background = "transparent";
+    staging.append(wrapper);
+    document.body.append(staging);
+
+    const canvas = await html2canvas(staging, {
+      backgroundColor: null,
+      useCORS: true,
+      scale: 2,
+    });
+
+    staging.remove();
+
+    const name = (state?.listName || "tierlist").replace(/[\\/:*?"<>|]/g, "_");
+    const filename = `${name}.png`;
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        window.__toast?.error("画像の生成に失敗しました");
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      window.__toast?.success("画像を書き出しました");
+    });
+  } catch (e) {
+    console.error("[export] failed:", e);
+    window.__toast?.error("画像の書き出しに失敗しました");
   }
 }
 

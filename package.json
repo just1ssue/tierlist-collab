@@ -11,6 +11,7 @@
   "dependencies": {
     "@liveblocks/client": "^3.13.3",
     "@liveblocks/yjs": "^3.13.3",
+    "html2canvas": "^1.4.1",
     "lib0": "^0.2.117",
     "yjs": "^13.6.29"
   },

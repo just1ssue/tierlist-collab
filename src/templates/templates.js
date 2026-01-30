@@ -1,15 +1,23 @@
-import odenAtsuage from "../assets/templates/food_oden_atsuage.png";
-import odenChikuwa from "../assets/templates/food_oden_chikuwa.png";
-import odenChikuwabu from "../assets/templates/food_oden_chikuwabu.png";
-import odenDaikon from "../assets/templates/food_oden_daikon.png";
-import odenGanmodoki from "../assets/templates/food_oden_ganmodoki.png";
-import odenGyuusuji from "../assets/templates/food_oden_gyuusuji.png";
-import odenHanpen from "../assets/templates/food_oden_hanpen.png";
-import odenKonnyaku from "../assets/templates/food_oden_konnyaku.png";
-import odenMochikinchaku from "../assets/templates/food_oden_mochikinchaku.png";
-import odenSatsumaage from "../assets/templates/food_oden_satsumaage.png";
-import odenShirataki from "../assets/templates/food_oden_shirataki.png";
-import odenTamago from "../assets/templates/food_oden_tamago.png";
+const imageModules = import.meta.glob("../assets/templates/*.{png,jpg,jpeg,webp}", {
+  eager: true,
+  import: "default",
+});
+
+const imagesByName = Object.fromEntries(
+  Object.entries(imageModules).map(([path, url]) => {
+    const name = path.split("/").pop().replace(/\.(png|jpe?g|webp)$/i, "");
+    return [name, url];
+  })
+);
+
+function img(name) {
+  const url = imagesByName[name];
+  if (!url) {
+    console.warn(`[templates] Missing image: ${name}`);
+    return null;
+  }
+  return url;
+}
 
 const templates = [
   {
@@ -17,23 +25,24 @@ const templates = [
     label: "おでん",
     listName: "おでん TierList",
     tiers: [
-      { id: "t_oden_s", name: "1", cards: [
-        { id: "c_oden_daikon", title: "大根", imageUrl: odenDaikon },
-        { id: "c_oden_tamago", title: "玉子", imageUrl: odenTamago },
-        { id: "c_oden_konnyaku", title: "こんにゃく", imageUrl: odenKonnyaku },
-        { id: "c_oden_atsuage", title: "厚揚げ", imageUrl: odenAtsuage },
-        { id: "c_oden_chikuwa", title: "ちくわ", imageUrl: odenChikuwa },
-        { id: "c_oden_chikuwabu", title: "ちくわぶ", imageUrl: odenChikuwabu },
-        { id: "c_oden_ganmodoki", title: "がんもどき", imageUrl: odenGanmodoki },
-        { id: "c_oden_gyuusuji", title: "牛すじ", imageUrl: odenGyuusuji },
-        { id: "c_oden_hanpen", title: "はんぺん", imageUrl: odenHanpen },
-        { id: "c_oden_mochikinchaku", title: "もちきんちゃく", imageUrl: odenMochikinchaku },
-        { id: "c_oden_satsumaage", title: "さつま揚げ", imageUrl: odenSatsumaage },
-        { id: "c_oden_shirataki", title: "しらたき", imageUrl: odenShirataki },
-      ]},
-      { id: "t_oden_a", name: "2", cards: [] },
+      { id: "t_oden_s", name: "Tier1", cards: []},
+      { id: "t_oden_a", name: "Tier2", cards: [] },
       { id: "t_vote", name: "VOTE", cards: [] },
-      { id: "t_backlog", name: "Backlog", cards: [] },
+      { id: "t_backlog", name: "Backlog", cards: [
+        { id: "c_oden_daikon", title: "大根", imageUrl: img("food_oden_daikon") },
+        { id: "c_oden_tamago", title: "玉子", imageUrl: img("food_oden_tamago") },
+        { id: "c_oden_konnyaku", title: "こんにゃく", imageUrl: img("food_oden_konnyaku") },
+        { id: "c_oden_atsuage", title: "厚揚げ", imageUrl: img("food_oden_atsuage") },
+        { id: "c_oden_chikuwa", title: "ちくわ", imageUrl: img("food_oden_chikuwa") },
+        { id: "c_oden_chikuwabu", title: "ちくわぶ", imageUrl: img("food_oden_chikuwabu") },
+        { id: "c_oden_ganmodoki", title: "がんもどき", imageUrl: img("food_oden_ganmodoki") },
+        { id: "c_oden_gyuusuji", title: "牛すじ", imageUrl: img("food_oden_gyuusuji") },
+        { id: "c_oden_hanpen", title: "はんぺん", imageUrl: img("food_oden_hanpen") },
+        { id: "c_oden_mochikinchaku", title: "もちきんちゃく", imageUrl: img("food_oden_mochikinchaku") },
+        { id: "c_oden_satsumaage", title: "さつま揚げ", imageUrl: img("food_oden_satsumaage") },
+        { id: "c_oden_shirataki", title: "しらたき", imageUrl: img("food_oden_shirataki") },
+        { id: "c_oden_tako", title: "たこ", imageUrl: img("food_oden_tako") },
+      ] },
     ],
   },
   {

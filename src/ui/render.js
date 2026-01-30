@@ -214,6 +214,12 @@ export function renderLayout(root, { onShare, onShareRoomId }) {
   addCardBtn.style.fontSize = "13px";
   addCardBtn.style.padding = "6px 12px";
   headActions.append(addCardBtn);
+
+  const exportBtn = el("button", "btn btn--secondary");
+  exportBtn.textContent = "Export PNG";
+  exportBtn.style.fontSize = "13px";
+  exportBtn.style.padding = "6px 12px";
+  headActions.append(exportBtn);
   
   mainHead.append(headActions);
   mainPanel.append(mainHead);
@@ -271,6 +277,7 @@ export function renderLayout(root, { onShare, onShareRoomId }) {
     changeNameBtn,
     addCardBtn,
     addTierBtn,
+    exportBtn,
     lpBody,
     templatesBody,
     voteSlot,
