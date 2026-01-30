@@ -374,8 +374,11 @@ function getDragCardId(event) {
   );
 }
 
-function cardNode(card) {
+function cardNode(card, { showImage = true } = {}) {
   const cardEl = el("div", "card");
+  if (!showImage) {
+    cardEl.classList.add("card--text-only");
+  }
   cardEl.draggable = true;
   cardEl.dataset.cardId = card.id;
 
@@ -418,28 +421,6 @@ function cardNode(card) {
   });
 
   const title = el("div", "card__title", card.title);
-
-  // ????????????
-  const imageContainer = el("div", "card__image-container");
-  const safeUrl = getSafeImageUrl(card.imageUrl);
-
-  if (safeUrl) {
-    const img = document.createElement("img");
-    img.className = "card__thumb";
-    img.src = safeUrl;
-    img.alt = "";
-    img.referrerPolicy = "no-referrer";
-    img.loading = "lazy";
-    img.decoding = "async";
-    img.draggable = false;
-    img.addEventListener("error", () => {
-      img.remove();
-      const errorEl = el("div", "card__error", "画像を読み込めませんでした");
-      imageContainer.append(errorEl);
-    });
-    imageContainer.append(img);
-  }
-
   const actions = el("div", "card__actions");
   const editBtn = el("button", "card__btn");
   editBtn.textContent = "✏️";
@@ -458,12 +439,38 @@ function cardNode(card) {
   });
 
   actions.append(editBtn, delBtn);
-  imageContainer.append(actions);
 
-  const footer = el("div", "card__footer");
-  footer.append(title);
-
-  cardEl.append(imageContainer, footer);
+  if (showImage) {
+    // ????????????
+    const imageContainer = el("div", "card__image-container");
+    const safeUrl = getSafeImageUrl(card.imageUrl);
+  
+    if (safeUrl) {
+      const img = document.createElement("img");
+      img.className = "card__thumb";
+      img.src = safeUrl;
+      img.alt = "";
+      img.referrerPolicy = "no-referrer";
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.draggable = false;
+      img.addEventListener("error", () => {
+        img.remove();
+        const errorEl = el("div", "card__error", "画像を読み込めませんでした");
+        imageContainer.append(errorEl);
+      });
+      imageContainer.append(img);
+    }
+  
+    imageContainer.append(actions);
+    const footer = el("div", "card__footer");
+    footer.append(title);
+    cardEl.append(imageContainer, footer);
+  } else {
+    const header = el("div", "card__header");
+    header.append(actions, title);
+    cardEl.append(header);
+  }
   return cardEl;
 }
 
@@ -750,6 +757,7 @@ function renderBoard(mainBody) {
       const hue = 0 + (120 * ratio);
       return `hsl(${hue}, 85%, 70%)`;
     };
+    const showImages = Object.values(state.cards || {}).some((card) => !!getSafeImageUrl(card?.imageUrl));
 
     let colorIndex = 0;
     orderedTiers.forEach((tier) => {
@@ -863,7 +871,7 @@ function renderBoard(mainBody) {
         const c = state.cards[cid];
         if (!c) continue;
         const safeUrl = getSafeImageUrl(c.imageUrl);
-        body.append(cardNode({ ...c, imageUrl: safeUrl }, safeUrl ? "" : "画像なし"));
+        body.append(cardNode({ ...c, imageUrl: safeUrl }, { showImage: showImages }));
       }
     }
 
@@ -871,8 +879,37 @@ function renderBoard(mainBody) {
     board.append(tierEl);
   });
 
-  mainBody.replaceChildren(board);
-  console.log("[main] renderBoard: completed successfully");
+    mainBody.replaceChildren(board);
+    requestAnimationFrame(() => {
+      board.querySelectorAll(".card__title").forEach((title) => {
+        const cardEl = title.closest(".card");
+        const clampLines = 1;
+        const style = window.getComputedStyle(title);
+        const lineHeight = Number.parseFloat(style.lineHeight) ||
+          Number.parseFloat(style.fontSize) * 1.3;
+
+        const prevDisplay = title.style.display;
+        const prevOverflow = title.style.overflow;
+        const prevClamp = title.style.webkitLineClamp;
+        const prevOrient = title.style.webkitBoxOrient;
+
+        title.style.display = "block";
+        title.style.overflow = "visible";
+        title.style.webkitLineClamp = "unset";
+        title.style.webkitBoxOrient = "initial";
+
+        const naturalHeight = title.scrollHeight;
+
+        title.style.display = prevDisplay;
+        title.style.overflow = prevOverflow;
+        title.style.webkitLineClamp = prevClamp;
+        title.style.webkitBoxOrient = prevOrient;
+
+        const isOverflowing = naturalHeight > (lineHeight * clampLines) + 1;
+        title.classList.toggle("card__title--compact", isOverflowing);
+      });
+    });
+    console.log("[main] renderBoard: completed successfully");
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error("[main] renderBoard error:", errorMsg);

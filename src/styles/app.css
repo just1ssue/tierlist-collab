@@ -380,6 +380,43 @@ a:hover { text-decoration: underline; }
   overflow: hidden;
 }
 
+.card__title--measure {
+  display: block;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: initial;
+  overflow: visible;
+}
+
+.card__title--compact {
+  font-size: var(--fs-1);
+  line-height: 1.2;
+  -webkit-line-clamp: 1;
+}
+
+.card--text-only .card__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+}
+
+.card--text-only .card__title {
+  font-size: var(--fs-5);
+  line-height: 1.2;
+  -webkit-line-clamp: 3;
+}
+
+.card--text-only .card__actions {
+  position: static;
+  align-self: flex-end;
+}
+
+.card--text-only .card__title--compact {
+  font-size: var(--fs-2);
+  line-height: 1.2;
+  -webkit-line-clamp: 1;
+}
+
 .card__image-container {
   width: 100%;
   height: auto;
