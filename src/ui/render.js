@@ -177,8 +177,8 @@ export function renderLayout(root, { onShare, onShareRoomId }) {
   leftPanel.append(el("div", "panel__head", "Room Info"));
   const info = el("div", "panel__body");
   info.append(
-    el("div", "", "現在機能拡張中 Phase3。"),
-    el("div", "help", "悪意に対応したいです")
+    el("div", "", "Phase4。"),
+    el("div", "help", "外部urlのSS未対応。")
   );
   leftPanel.append(info);
   leftPanel.append(el("div", "panel__head", "Templates"));
@@ -217,9 +217,7 @@ export function renderLayout(root, { onShare, onShareRoomId }) {
 
   const exportBtn = el("button", "btn btn--secondary");
   exportBtn.textContent = "Export PNG";
-  exportBtn.style.fontSize = "13px";
-  exportBtn.style.padding = "6px 12px";
-  headActions.append(exportBtn);
+  right.append(exportBtn);
   
   mainHead.append(headActions);
   mainPanel.append(mainHead);

@@ -114,6 +114,11 @@ a:hover { text-decoration: underline; }
   align-items: center;
   gap: var(--s-4);
 }
+.header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
 .brand {
   font-weight: var(--fw-semibold);
   letter-spacing: 0.2px;
@@ -163,6 +168,10 @@ a:hover { text-decoration: underline; }
   border-bottom: 1px solid var(--c-border);
   background: rgba(15,23,48,0.70);
   font-weight: var(--fw-medium);
+}
+
+.panel__head > div:first-child {
+  font-size: var(--fs-5);
 }
 
 .panel__body {
