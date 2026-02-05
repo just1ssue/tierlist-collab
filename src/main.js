@@ -329,14 +329,30 @@ function openModal({ title, contentNode, primaryText, onPrimary, secondaryText =
     backdrop.remove();
   };
 
+  let allowBackdropClose = false;
+  modal.addEventListener("pointerdown", () => {
+    allowBackdropClose = false;
+  });
+  backdrop.addEventListener("pointerdown", (e) => {
+    allowBackdropClose = e.target === backdrop;
+  });
+
   const onKey = (e) => {
     if (e.key === "Escape") cleanup();
   };
   window.addEventListener("keydown", onKey);
 
   backdrop.addEventListener("click", (e) => {
-    if (e.target === backdrop) cleanup();
+    if (e.target !== backdrop) return;
+    if (!allowBackdropClose) return;
+    const selection = window.getSelection?.();
+    if (selection && selection.type === "Range") {
+      allowBackdropClose = false;
+      return;
+    }
+    cleanup();
   });
+
   closeBtn.addEventListener("click", cleanup);
   cancel.addEventListener("click", cleanup);
 
