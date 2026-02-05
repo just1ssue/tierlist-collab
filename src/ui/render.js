@@ -144,7 +144,7 @@ function hashColor(str) {
   return `hsl(${hue}, 70%, 60%)`;
 }
 
-export function renderLayout(root, { onShare, onShareRoomId }) {
+export function renderLayout(root, { onShare, onShareRoomId, enableUserRename }) {
   const app = el("div", "app");
 
   const header = el("header", "header");
@@ -169,7 +169,7 @@ export function renderLayout(root, { onShare, onShareRoomId }) {
   const container = el("div", "container");
   const shell = el("div", "shell");
 
-  const leftPanel = el("aside", "panel");
+  const leftPanel = el("aside", "panel panel--left");
   leftPanel.append(el("div", "panel__head", "Participants"));
   const lpBody = el("div", "panel__body");
   lpBody.append(el("div", "", "Guest-local"));
@@ -184,6 +184,15 @@ export function renderLayout(root, { onShare, onShareRoomId }) {
   leftPanel.append(el("div", "panel__head", "Templates"));
   const templatesBody = el("div", "panel__body");
   leftPanel.append(templatesBody);
+
+  let userNameBtn = null;
+  if (enableUserRename) {
+    const leftFoot = el("div", "panel__foot");
+    userNameBtn = el("button", "btn btn--secondary btn--block");
+    userNameBtn.textContent = "Change My Name";
+    leftFoot.append(userNameBtn);
+    leftPanel.append(leftFoot);
+  }
 
   const mainPanel = el("main", "panel");
   const mainHead = el("div", "panel__head");
@@ -278,6 +287,7 @@ export function renderLayout(root, { onShare, onShareRoomId }) {
     exportBtn,
     lpBody,
     templatesBody,
+    userNameBtn,
     voteSlot,
     voteImg,
     voteTitle,

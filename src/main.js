@@ -23,6 +23,8 @@ let voteUI = null;
 let currentVoteCardId = null;
 let currentVoteSessionId = null;
 
+const ENABLE_USER_RENAME = true;
+
 function getSafeImageUrl(url) {
   return sanitizeImageUrl(url);
 }
@@ -660,6 +662,45 @@ function showChangeListNameModal() {
   setTimeout(() => input.focus(), 0);
 }
 
+function showChangeUserNameModal() {
+  if (!currentRoom || !currentUser) return;
+
+  const wrap = el("div");
+  const field = el("div", "field");
+  field.append(el("div", "label", "Your Name (1〜24)"));
+  const input = document.createElement("input");
+  input.className = "input";
+  input.value = currentUser.displayName || "";
+  field.append(input);
+
+  const err = el("div", "error");
+  wrap.append(field, err);
+
+  openModal({
+    title: "Change My Name",
+    contentNode: wrap,
+    primaryText: "Save",
+    onPrimary: () => {
+      err.textContent = "";
+      const name = (input.value ?? "").trim();
+      if (!name || name.length > 24) {
+        err.textContent = "名前は1〜24文字で入力してください";
+        window.__toast?.error(err.textContent);
+        return false;
+      }
+
+      const newPresence = { ...currentUser, displayName: name };
+      currentUser = newPresence;
+      updatePresence(currentRoom, newPresence);
+      renderParticipantsNow();
+      window.__toast?.success("名前を更新しました");
+      return true;
+    },
+  });
+
+  setTimeout(() => input.focus(), 0);
+}
+
 function showAddCardModal() {
   const wrap = el("div");
   
@@ -940,6 +981,7 @@ function renderApp() {
       addCardBtn,
       addTierBtn,
       exportBtn,
+      userNameBtn,
       lpBody,
       templatesBody,
       voteSlot,
@@ -949,7 +991,7 @@ function renderApp() {
       badBtn,
       goodCount,
       badCount,
-    } = renderLayout(root, { onShare, onShareRoomId });
+    } = renderLayout(root, { onShare, onShareRoomId, enableUserRename: ENABLE_USER_RENAME });
 
     // 参加者リストを描画
     participantsBody = lpBody;
@@ -1046,6 +1088,9 @@ function renderApp() {
     addCardBtn.addEventListener("click", showAddCardModal);
     addTierBtn.addEventListener("click", showAddTierModal);
     exportBtn.addEventListener("click", () => exportBoardImage(mainBody));
+    if (userNameBtn) {
+      userNameBtn.addEventListener("click", showChangeUserNameModal);
+    }
 
     const toasts = mountToast();
     root.querySelector(".app").append(toasts);

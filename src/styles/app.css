@@ -163,6 +163,11 @@ a:hover { text-decoration: underline; }
   overflow: hidden;
 }
 
+.panel--left {
+  display: flex;
+  flex-direction: column;
+}
+
 .panel__head {
   padding: var(--s-4) var(--s-4);
   border-bottom: 1px solid var(--c-border);
@@ -176,6 +181,15 @@ a:hover { text-decoration: underline; }
 
 .panel__body {
   padding: var(--s-4);
+}
+
+.panel__foot {
+  padding: var(--s-4);
+  margin-top: auto;
+}
+
+.btn--block {
+  width: 100%;
 }
 
 .shell > main.panel > .panel__body {
