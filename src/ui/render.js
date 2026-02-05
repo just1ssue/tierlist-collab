@@ -24,34 +24,33 @@ export function mountToast() {
   return toasts;
 }
 
-export function renderParticipants(lpBody, currentUser, othersPresence) {
-  // 参加者リストをクリア
+export function renderParticipants(lpBody, currentUser, othersPresence, userNameBtn) {
+  // ?????????????????
   lpBody.innerHTML = "";
 
-  // currentUser と othersPresence を統一したフォーマットに
-  const allParticipants = [
-    currentUser,
-    ...othersPresence.map(other => other.user || other) // user プロパティがあれば展開
-  ].filter(Boolean);
+  const others = othersPresence
+    .map(other => other.user || other) // user ?????????????????
+    .filter(Boolean);
 
-  if (allParticipants.length === 0) {
+  if (!currentUser && others.length === 0) {
     lpBody.append(el("div", "text-muted", "No participants"));
     return;
   }
 
-  for (const participant of allParticipants) {
+  const renderOne = (participant) => {
+    if (!participant) return;
     const participantEl = el("div", "participant");
 
     const avatar = el("div", "participant__avatar");
     const initial = (participant.displayName?.[0] || "?").toUpperCase();
     avatar.textContent = initial;
-    
-    // userId が存在することを確認
+
+    // userId ?????????????????
     if (!participant.userId) {
       console.warn("[render] participant missing userId:", participant);
-      continue;
+      return;
     }
-    
+
     avatar.style.backgroundColor = hashColor(participant.userId);
 
     const info = el("div", "participant__info");
@@ -59,12 +58,23 @@ export function renderParticipants(lpBody, currentUser, othersPresence) {
     info.append(name);
 
     if (participant.draggingCardId) {
-      const status = el("div", "participant__status", `🎯 Dragging card`);
+      const status = el("div", "participant__status", `?? Dragging card`);
       info.append(status);
     }
 
     participantEl.append(avatar, info);
     lpBody.append(participantEl);
+  };
+
+  // Order: current user -> change button -> others
+  renderOne(currentUser);
+  if (userNameBtn) {
+    const btnWrap = el("div", "participant-actions");
+    btnWrap.append(userNameBtn);
+    lpBody.append(btnWrap);
+  }
+  for (const participant of others) {
+    renderOne(participant);
   }
 }
 
@@ -187,11 +197,8 @@ export function renderLayout(root, { onShare, onShareRoomId, enableUserRename })
 
   let userNameBtn = null;
   if (enableUserRename) {
-    const leftFoot = el("div", "panel__foot");
-    userNameBtn = el("button", "btn btn--secondary btn--block");
+    userNameBtn = el("button", "btn btn--secondary");
     userNameBtn.textContent = "Change My Name";
-    leftFoot.append(userNameBtn);
-    leftPanel.append(leftFoot);
   }
 
   const mainPanel = el("main", "panel");

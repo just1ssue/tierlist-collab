@@ -192,6 +192,17 @@ a:hover { text-decoration: underline; }
   width: 100%;
 }
 
+.participant-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 var(--s-3);
+}
+
+.participant-actions .btn {
+  padding: 6px 10px;
+  font-size: var(--fs-2);
+}
+
 .shell > main.panel > .panel__body {
   padding: var(--s-2);
 }

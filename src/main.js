@@ -22,6 +22,7 @@ let participantsBody = null;
 let voteUI = null;
 let currentVoteCardId = null;
 let currentVoteSessionId = null;
+let currentUserNameBtn = null;
 
 const ENABLE_USER_RENAME = true;
 
@@ -55,7 +56,7 @@ function moveCardToTier(cardId, toTierId) {
 
 function renderParticipantsNow() {
   if (!participantsBody) return;
-  renderParticipants(participantsBody, currentUser, othersPresence);
+  renderParticipants(participantsBody, currentUser, othersPresence, currentUserNameBtn);
 }
 
 /**
@@ -1008,6 +1009,8 @@ function renderApp() {
       goodCount,
       badCount,
     } = renderLayout(root, { onShare, onShareRoomId, enableUserRename: ENABLE_USER_RENAME });
+
+    currentUserNameBtn = userNameBtn;
 
     // 参加者リストを描画
     participantsBody = lpBody;
