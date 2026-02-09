@@ -25,6 +25,10 @@ npm install
 npm run dev
 ```
 
+.env.example をコピーして、 .env.local を作成し、liveblocksのapiキーを入力します。
+ローカル開発では適当な値でも動きますが、他の人と同期した編集はできません。
+
+
 ブラウザで `http://localhost:5173` を開きます。  
 例: `http://localhost:5173/#room/room_xxxxx`
 
